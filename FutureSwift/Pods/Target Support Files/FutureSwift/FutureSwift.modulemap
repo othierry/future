@@ -1,0 +1,6 @@
+framework module FutureSwift {
+  umbrella header "FutureSwift-umbrella.h"
+
+  export *
+  module * { export * }
+}

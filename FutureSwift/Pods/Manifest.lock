@@ -1,0 +1,22 @@
+PODS:
+  - FutureSwift (0.0.1)
+  - Nimble (3.2.0)
+  - Quick (0.9.1)
+
+DEPENDENCIES:
+  - FutureSwift (from `../`)
+  - Nimble (~> 3.0)
+  - Quick (~> 0.8)
+
+EXTERNAL SOURCES:
+  FutureSwift:
+    :path: "../"
+
+SPEC CHECKSUMS:
+  FutureSwift: 5f5e94675000985007cb8192e120d5a3e2f9e74d
+  Nimble: 703854335d181df169bbca9c97117b5cf8c47c1d
+  Quick: a5221fc21788b6aeda934805e68b061839bc3165
+
+PODFILE CHECKSUM: a66d0f5539458944101546cbe1447953ac6aa423
+
+COCOAPODS: 1.0.0.beta.4
