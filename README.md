@@ -26,8 +26,8 @@ It is the same thoughts as the Callback pattern with more flexibility and cleane
 By design, this library merges Promise and Future patterns. A promise is just a writable (once) container that resolve or reject its contained future. A future is supposed to be read-only. In this library, a future exposes promise's `reject(_:)`/`resolve(_:)` methods the same way a promise would, they must be called only once. If you try to resolve an already resolved/rejected promise, an exception will be thrown.
 
 `promise(_:)` function acts a bit different than `future(_:)` function. Both returns futures but:
-- `future(_:)` takes a block taking no arguments and returning a value. The block can throw an exception. If an exception is thrown, the future will reject using the catched error, otherwise it will resolve using the returned value.
-- `promose(_:)` takes a block taking a `Future` object. you are responsible for calling `resolve(_:)` or `reject(_:)` on that future with the corresponding value/error.
+- `future(_:)` takes a block taking no argument and returning a value. The block can throw an exception. If an exception is thrown, the future will reject using the catched error, otherwise it will resolve using the returned value.
+- `promise(_:)` takes a block taking a `Future` object. You are then responsible for calling `resolve(_:)` or `reject(_:)` on that future with the corresponding value/error.
 
 #### Use case scenarios
 
@@ -55,7 +55,7 @@ func fetchUser(id: Int) -> Future<User> {
 
 ```
 
-- If you need to perform sync code within your block (let's say you want to do expansive computing) then use `future(_:)`
+- If you need to perform sync code within your block then use `future(_:)`
 
 ```swift
 func fetchUser(id: Int) -> Future<Bool> {
@@ -70,13 +70,31 @@ func fetchUser(id: Int) -> Future<Bool> {
 
 ```
 
-### Composing / Consuming futures
+### Composing futures
 
 *Incoming*
 
-### Composing / Consuming promises
+#### Simple future
 
 *Incoming*
+
+#### Chaining Futures
+
+*Incoming*
+
+### Consuming futures
+
+#### Then
+
+You can pass completion callbacks to a future using the `then(_:)` method.
+The callback can be one of the following:
+- `Void -> Void`: Ignores the value resolved by the `Future` and returns nothing.
+- `A -> Void`: Takes the value resolved by the future and returns nothing.
+- `A -> B`: Takes the value resolved by the future and returns a new value. This value is the new value that will be passed to the rest of the futures chain. **NOTE**: This is NOT mutating the future's original value. A future's value is set only once.
+
+#### Fail
+
+You can call `fail(_:)` on a future by passing a closure that takes an `ErrorType` as parameter. When one of the future in the chain fails, this block will be called using the given error.
 
 ### Await
 
