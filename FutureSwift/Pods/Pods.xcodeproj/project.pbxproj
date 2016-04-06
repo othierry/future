@@ -31,10 +31,11 @@
 		47FE1F3C735A2D413C43514BF0C93F5D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CA2BFD570CD736156D66A95A51655E2 /* Foundation.framework */; };
 		486B74C8EFEB68AD25CE128F3051E432 /* ObjCExpectation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A129290F935182407C183EB04C0C2C90 /* ObjCExpectation.swift */; };
 		49E2C74B57536E9CE7D48BEA4198FE9A /* FutureSwift-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = FCF8DD71B176E4AF95AD7671EFC4926C /* FutureSwift-dummy.m */; };
-		4ABD41B0CB0D52DF3227C6E34CE51DD0 /* ReplaceMe.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1C10EE0F3BDD6C58A03C02A3C6730E3 /* ReplaceMe.swift */; };
 		4AF6C26A30D865059C24DC5317786B76 /* BeNil.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F2748FABD1661E3A75F8B07E115CF96 /* BeNil.swift */; };
 		4BBFB5118E5F44C81E2FAE6669C0D1DF /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CA2BFD570CD736156D66A95A51655E2 /* Foundation.framework */; };
 		4E5A721963877AA3A6AA3D80DAA4E5E9 /* AssertionRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEDAA753452F6B96DE24D2CF7D396628 /* AssertionRecorder.swift */; };
+		4F0468E51CB3F38400E996F9 /* Future.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F0468E31CB3F38400E996F9 /* Future.swift */; };
+		4F0468E61CB3F38400E996F9 /* Operators.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F0468E41CB3F38400E996F9 /* Operators.swift */; };
 		5104AE2989305145BF446E633B567924 /* EndWith.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EE5DB72110FF4FE8D16C90A617EFD92 /* EndWith.swift */; };
 		52CDF61ADE0FCC38909080ECEDBBBE17 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E5E3CD16DA34D0D08F766AB21A90FAC /* XCTest.framework */; };
 		539659DABE26226BD5FFBF69530C32B0 /* Filter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F17FBDF6FF6B666A3D102EDD81DFE416 /* Filter.swift */; };
@@ -164,6 +165,8 @@
 		45D3661DD977D936FA0FEA7FDE08D852 /* Equal.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Equal.swift; path = Sources/Nimble/Matchers/Equal.swift; sourceTree = "<group>"; };
 		484D4EBF8871444568D3405C7606AA93 /* Pods-FutureSwift_Tests-resources.sh */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.script.sh; path = "Pods-FutureSwift_Tests-resources.sh"; sourceTree = "<group>"; };
 		4EBC862576E582DF711B25DC28CFCDBE /* QuickTestSuite.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QuickTestSuite.swift; path = Sources/Quick/QuickTestSuite.swift; sourceTree = "<group>"; };
+		4F0468E31CB3F38400E996F9 /* Future.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Future.swift; sourceTree = "<group>"; };
+		4F0468E41CB3F38400E996F9 /* Operators.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Operators.swift; sourceTree = "<group>"; };
 		51465DCF8ECE9AE4DD3DECD5656849CE /* Expectation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Expectation.swift; path = Sources/Nimble/Expectation.swift; sourceTree = "<group>"; };
 		5C8C873CB5F43A0FA130C9B9FF74B6B0 /* SatisfyAnyOf.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SatisfyAnyOf.swift; path = Sources/Nimble/Matchers/SatisfyAnyOf.swift; sourceTree = "<group>"; };
 		5CE93FA4667205AEE386C8648ABDC57E /* BeCloseTo.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BeCloseTo.swift; path = Sources/Nimble/Matchers/BeCloseTo.swift; sourceTree = "<group>"; };
@@ -219,7 +222,6 @@
 		C5DDC9824ED21BCC218F3C3E3E907AED /* XCTestSuite+QuickTestSuiteBuilder.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "XCTestSuite+QuickTestSuiteBuilder.m"; path = "Sources/Quick/XCTestSuite+QuickTestSuiteBuilder.m"; sourceTree = "<group>"; };
 		CB75D143FA2C1D4F42F8F03369239006 /* ObjCMatcher.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ObjCMatcher.swift; path = Sources/Nimble/Wrappers/ObjCMatcher.swift; sourceTree = "<group>"; };
 		CEE64EA353B53213731308BD65C1ECA7 /* Nimble.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Nimble.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		D1C10EE0F3BDD6C58A03C02A3C6730E3 /* ReplaceMe.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ReplaceMe.swift; sourceTree = "<group>"; };
 		D29528E2ADACEB31F5B2380DA50612C1 /* BeLogical.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BeLogical.swift; path = Sources/Nimble/Matchers/BeLogical.swift; sourceTree = "<group>"; };
 		D365431FBA3C40A9570E9266B44005D7 /* NMBExceptionCapture.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = NMBExceptionCapture.m; path = Sources/Nimble/objc/NMBExceptionCapture.m; sourceTree = "<group>"; };
 		D772AF03D0B82E63647D129AEA9CCF1B /* SuiteHooks.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SuiteHooks.swift; path = Sources/Quick/Hooks/SuiteHooks.swift; sourceTree = "<group>"; };
@@ -284,7 +286,8 @@
 		2BC7C280BCC955D171579523172AE1CB /* Classes */ = {
 			isa = PBXGroup;
 			children = (
-				D1C10EE0F3BDD6C58A03C02A3C6730E3 /* ReplaceMe.swift */,
+				4F0468E31CB3F38400E996F9 /* Future.swift */,
+				4F0468E41CB3F38400E996F9 /* Operators.swift */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
@@ -575,9 +578,9 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		06B56D9E1EBD04EE8AFC62F4CD7D7BB0 /* FutureSwift */ = {
+		06B56D9E1EBD04EE8AFC62F4CD7D7BB0 /* Future */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A16DB6C6705B3B799A6F630D00FC1240 /* Build configuration list for PBXNativeTarget "FutureSwift" */;
+			buildConfigurationList = A16DB6C6705B3B799A6F630D00FC1240 /* Build configuration list for PBXNativeTarget "Future" */;
 			buildPhases = (
 				B394E485B05B9DB7FF1FD85FB2E72B00 /* Sources */,
 				A9AD1BDDB42B533A48CCE667B066A717 /* Frameworks */,
@@ -587,7 +590,7 @@
 			);
 			dependencies = (
 			);
-			name = FutureSwift;
+			name = Future;
 			productName = FutureSwift;
 			productReference = FF4299A6AB5564AF5A74522B8869997A /* FutureSwift.framework */;
 			productType = "com.apple.product-type.framework";
@@ -667,7 +670,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				06B56D9E1EBD04EE8AFC62F4CD7D7BB0 /* FutureSwift */,
+				06B56D9E1EBD04EE8AFC62F4CD7D7BB0 /* Future */,
 				FF61C7C740C1B196A3B33F37B77DBC68 /* Nimble */,
 				B4AA019F6C9BD82FE7DBBF314517AE1A /* Pods-FutureSwift_Tests */,
 				0B07829C92B93B38A63A46180D75C443 /* Quick */,
@@ -773,8 +776,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4F0468E51CB3F38400E996F9 /* Future.swift in Sources */,
+				4F0468E61CB3F38400E996F9 /* Operators.swift in Sources */,
 				49E2C74B57536E9CE7D48BEA4198FE9A /* FutureSwift-dummy.m in Sources */,
-				4ABD41B0CB0D52DF3227C6E34CE51DD0 /* ReplaceMe.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -790,7 +794,7 @@
 		96BBF93D356AB498A9A31628A72D5989 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = FutureSwift;
-			target = 06B56D9E1EBD04EE8AFC62F4CD7D7BB0 /* FutureSwift */;
+			target = 06B56D9E1EBD04EE8AFC62F4CD7D7BB0 /* Future */;
 			targetProxy = 76C72BCD139D4F4F945DDAF811A3635F /* PBXContainerItemProxy */;
 		};
 		BDA32194D5B75F90236C6028973016C3 /* PBXTargetDependency */ = {
@@ -1154,7 +1158,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A16DB6C6705B3B799A6F630D00FC1240 /* Build configuration list for PBXNativeTarget "FutureSwift" */ = {
+		A16DB6C6705B3B799A6F630D00FC1240 /* Build configuration list for PBXNativeTarget "Future" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				270BD33A956E7CE8C684A670FD87947A /* Debug */,
