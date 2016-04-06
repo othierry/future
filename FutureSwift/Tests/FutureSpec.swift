@@ -20,7 +20,8 @@ class FutureSpec: QuickSpec {
         future.fail { _ in failCalled = true }
         
         // Wait for async call dispatched on main queue
-        waitUntil { done in done() }
+        // Wait for async call dispatched on main queue
+        CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1, false)
 
         expect(future.state) == FutureState.Resolved
         expect(failCalled) == false
@@ -111,10 +112,6 @@ class FutureSpec: QuickSpec {
       }
       
       context("when a future fails") {
-        future {
-        
-        }
-        
         it("it rejects up to the parent") {
           let future = Future<Int>()
           
@@ -346,7 +343,7 @@ class FutureSpec: QuickSpec {
       
     }
     
-    describe("...") {
+    describe("await") {
       func request(params: [String: String]) -> Future<[String: String]> {
         return future {
           NSThread.sleepForTimeInterval(0.5)
@@ -366,7 +363,7 @@ class FutureSpec: QuickSpec {
         }
       }
       
-      it("fukcing works") {
+      it("properly awaits and resolve values") {
         let posts = try? await <- values <- login("foo", p: "bar")
         expect(posts) == ["bar", "foo"]
       }
