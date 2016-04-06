@@ -53,7 +53,7 @@ public class Future<A> {
       self.timeoutTimer = NSTimer.scheduledTimerWithTimeInterval(
         self.timeoutInterval,
         target: self,
-        selector: "timeout",
+        selector: #selector(performTimeout),
         userInfo: nil,
         repeats: false)
     }
@@ -109,7 +109,7 @@ public class Future<A> {
   }
   
   @objc
-  private func timeout() {
+  private func performTimeout() {
     self.reject(
       NSError(
         domain: "com.future",
