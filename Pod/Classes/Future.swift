@@ -403,77 +403,6 @@ public extension Future {
   
 }
 
-public extension Future {
-  
-  public func merge<B>(f: Future<B>) -> Future<(A, B)> {
-    return future {
-      let x = try await <- self
-      let y = try await <- f
-      return (x, y)
-    }
-  }
-  
-  /**
-   Wrap the result of a future into a new Future<Void>
-   
-   This is useful when a future actually resolves a value
-   with a concrete type but the caller of the future do not
-   care about this value and expect Void
-   
-   Example:
-   
-   ```
-   class A: SomeProtocol {
-    // Protocol conforming requires this
-    public var future: Future<Void> {
-      return Future<User>.incoming { future
-        let user = ...
-        future.resolve(user)
-      }.then { user
-        print("user found \(user)")
-      }.wrapped() // Is now a Future<Void>
-    }
-   }
-   ```
-   */
-  public func wrapped() -> Future<Void> {
-    return future { try await <- self }
-  }
-  
-  /**
-   Wrap the result of a future into a new Future<C>
-   
-   This is useful when a future actually resolves a value
-   with a concrete type but the caller of the future expect
-   another type your value type can be downcasted to.
-   
-   Example:
-   
-   ```
-   class A: SomeProtocol {
-    // Protocol conforming requires this
-    public var future: Future<AnyObject> {
-      return Future<User.incoming { future
-        let user = ...
-        future.resolve(user)
-      }.then { user
-        print("user found \(user)")
-      }.wrapped(AnyObject) // Is now a Future<AnyObject>
-    }
-   }
-   ```
-   */
-  public func wrapped<C>(_: C.Type) -> Future<C> {
-    /// TODO: Check error when using as! instead of `unsafeBitCast`
-    /// Why do we need `unsafeBitCast` ?
-    return future {
-      let object = try await <- self
-      return unsafeBitCast(object, C.self)
-    }
-  }
-  
-}
-
 /**
  Designated static initializer for sync futures.
  The method executes the block asynchronously in background queue
@@ -510,6 +439,43 @@ public func promise<A>(f: Future<A> -> Void) -> Future<A> {
     f(future)
   }
   return future
+}
+
+public func merge<A, B>(f: Future<A>, g: Future<B>) -> Future<(A, B)> {
+  return future {
+    let x = try await <- f
+    let y = try await <- g
+    return (x, y)
+  }
+}
+
+/**
+ Wrap the result of a future into a new Future<Void>
+ 
+ This is useful when a future actually resolves a value
+ with a concrete type but the caller of the future do not
+ care about this value and expect Void
+ */
+public func wrapped<A>(f: Future<A>) -> Future<Void> {
+  return future {
+    try await <- f
+  }
+}
+
+/**
+ Wrap the result of a future into a new Future<C>
+ 
+ This is useful when a future actually resolves a value
+ with a concrete type but the caller of the future expect
+ another type your value type can be downcasted to.
+ */
+public func wrapped<A, B>(f: Future<A>, type: B.Type) -> Future<B> {
+  /// TODO: Check error when using as! instead of `unsafeBitCast`
+  /// Why do we need `unsafeBitCast` ?
+  return future {
+    let object = try await <- f
+    return unsafeBitCast(object, B.self)
+  }
 }
 
 /**
@@ -557,6 +523,17 @@ public func any<A>(futures: [Future<A>]) -> Future<A> {
   }
 }
 
+/**
+ Works as the normal reduce function for standar library but with futures
+ 
+ If all futures fails, the future will be rejected with the same error
+ 
+ Parameter futures: an array of futures to resolve
+ Parameter value: the initial value
+ Parameter combine: the reducer closure
+ 
+ Returns: future object
+ */
 public func reduce<A, B>(futures: [Future<A>], value: B, combine: (B, A) throws -> B) -> Future<B> {
   return future {
     let values = try await <- all(futures)
@@ -589,5 +566,3 @@ public func await<A>(future: Future<A>) throws -> A {
     throw NSError(domain: NSInternalInconsistencyException, code: -1, userInfo: nil)
   }
 }
-
-
