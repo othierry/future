@@ -112,7 +112,7 @@ class FutureSpec: QuickSpec {
       }
       
       context("when a future fails") {
-        it("it rejects up to the parent") {
+        it("it rejects up to the parent") {          
           let future = Future<Int>()
           
           var results: [Int] = []
@@ -136,7 +136,7 @@ class FutureSpec: QuickSpec {
       }
     }
     
-    describe("Future#finally") {
+    describe("Future#finally") {      
       var future: Future<Void>!
       var thenCalled: Bool = false
       var failedCalled: Bool = false
@@ -249,9 +249,9 @@ class FutureSpec: QuickSpec {
       
       context("when all futures resolve") {
         let futures: [Future<Int>] = (1...3).map { index in
-          return promise { future in
+          return Promise { promise in
             NSThread.sleepForTimeInterval(0.2)
-            future.resolve(index)
+            promise.resolve(index)
           }
         }
         
@@ -284,7 +284,7 @@ class FutureSpec: QuickSpec {
       
       context("when at least one future fails") {
         let futures: [Future<Int>] = (1...3).map { index in
-          return promise { future in
+          return Promise { future in
             NSThread.sleepForTimeInterval(0.2 * Double(index))
             if index == 1 {
               future.reject()
@@ -313,7 +313,7 @@ class FutureSpec: QuickSpec {
       
       context("when at least 1 future resolves") {
         let futures: [Future<Int>] = (0...2).map { index in
-          return promise { future in
+          return Promise { future in
             if index == 0 {
               future.resolve(index)
             } else {
@@ -346,20 +346,20 @@ class FutureSpec: QuickSpec {
     
     describe("await") {
       func request(params: [String: String]) -> Future<[String: String]> {
-        return future {
+        return Future {
           NSThread.sleepForTimeInterval(0.5)
           return params
         }
       }
       
       func login(u: String, p: String) -> Future<[String: String]> {
-        return future {
+        return Future {
           try await <- request([u: u, p: p])
         }
       }
       
       func values(user: [String: String]) -> Future<[String]> {
-        return future {
+        return Future {
           try { Array<String>($0.values).sort() } <- request(user)
         }
       }

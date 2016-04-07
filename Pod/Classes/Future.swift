@@ -78,6 +78,27 @@ public class Future<A> {
     dispatch_group_enter(self.group)
   }
   
+  /**
+   Designated static initializer for sync futures.
+   The method executes the block asynchronously in background queue
+   (Future.futureQueueConcurrent)
+   
+   Parameter: f: The block to execute with the future as parameter.
+   
+   Returns: The created future object
+   */
+  public convenience init(_ f: Void throws -> A) {
+    self.init()
+
+    dispatch_async(futureQueueConcurrent) {
+      do {
+        try self.resolve(f())
+      } catch let error {
+        self.reject(error)
+      }
+    }
+  }
+
   deinit {
     self.timeoutTimer?.invalidate()
   }
@@ -92,7 +113,9 @@ public class Future<A> {
    Returns: The future
    */
   public static func resolve<A>(value: A) -> Future<A> {
-    return promise { $0.resolve(value) }
+    let future = Future<A>()
+    future.resolve(value)
+    return future
   }
   
   /**
@@ -105,7 +128,9 @@ public class Future<A> {
    Returns: The future
    */
   public static func reject<A>(error: ErrorType?) -> Future<A> {
-    return promise { $0.reject(error) }
+    let future = Future<A>()
+    future.reject(error)
+    return future
   }
   
   @objc
@@ -369,9 +394,7 @@ public extension Future {
    */
   private func resolveAll() {
     for f in self.chain.then {
-      print("dispatch")
       dispatch_async(dispatch_get_main_queue()) {
-        print("dispatched")
         f(self.value)
       }
     }
@@ -403,46 +426,8 @@ public extension Future {
   
 }
 
-/**
- Designated static initializer for sync futures.
- The method executes the block asynchronously in background queue
- (Future.futureQueueConcurrent)
- 
- Parameter: f: The block to execute with the future as parameter.
- 
- Returns: The created future object
- */
-public func future<A>(f: Void throws -> A ) -> Future<A> {
-  return promise { promise in
-    do {
-      try promise.resolve(f())
-    } catch let error {
-      promise.reject(error)
-    }
-  }
-}
-
-/**
- Designated static initializer for async futures.
- The method executes the block asynchronously in background queue
- (Future.futureQueueConcurrent). It provide a promise object to
- resolve or reject the future. This method is useful when the body
- of the async block also calls async code.
- 
- Parameter: f: The block to execute with the future as parameter.
- 
- Returns: The created future object
- */
-public func promise<A>(f: Future<A> -> Void) -> Future<A> {
-  let future = Future<A>()
-  dispatch_async(futureQueueConcurrent) {
-    f(future)
-  }
-  return future
-}
-
 public func merge<A, B>(f: Future<A>, _ g: Future<B>) -> Future<(A, B)> {
-  return future {
+  return Future {
     let x = try await <- f
     let y = try await <- g
     return (x, y)
@@ -457,7 +442,7 @@ public func merge<A, B>(f: Future<A>, _ g: Future<B>) -> Future<(A, B)> {
  care about this value and expect Void
  */
 public func wrap<A>(f: Future<A>) -> Future<Void> {
-  return future {
+  return Future {
     try await <- f
   }
 }
@@ -472,7 +457,7 @@ public func wrap<A>(f: Future<A>) -> Future<Void> {
 public func wrap<A, B>(f: Future<A>, to: B.Type) -> Future<B> {
   /// TODO: Check error when using as! instead of `unsafeBitCast`
   /// Why do we need `unsafeBitCast` ?
-  return future {
+  return Future {
     let object = try await <- f
     return unsafeBitCast(object, B.self)
   }
@@ -489,7 +474,7 @@ public func wrap<A, B>(f: Future<A>, to: B.Type) -> Future<B> {
  Returns: future object
  */
 public func all<A>(futures: [Future<A>]) -> Future<[A]> {
-  return future {
+  return Future {
     try await <- futures
   }
 }
@@ -508,10 +493,10 @@ public func any<A>(futures: [Future<A>]) -> Future<A> {
     fatalError("Future.any called with empty futures array.")
   }
   
-  return promise { promise in
+  return Promise<A> { promise in
     do {
       try await <- futures.map { f in
-        future {
+        Future {
           if let value = try? await <- f {
             promise.resolve(value)
           }
@@ -535,7 +520,7 @@ public func any<A>(futures: [Future<A>]) -> Future<A> {
  Returns: future object
  */
 public func reduce<A, B>(futures: [Future<A>], value: B, combine: (B, A) throws -> B) -> Future<B> {
-  return future {
+  return Future {
     let values = try await <- all(futures)
     return try values.reduce(value, combine: combine)
   }
