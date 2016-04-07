@@ -441,7 +441,7 @@ public func promise<A>(f: Future<A> -> Void) -> Future<A> {
   return future
 }
 
-public func merge<A, B>(f: Future<A>, g: Future<B>) -> Future<(A, B)> {
+public func merge<A, B>(f: Future<A>, _ g: Future<B>) -> Future<(A, B)> {
   return future {
     let x = try await <- f
     let y = try await <- g

@@ -209,7 +209,7 @@ class FutureSpec: QuickSpec {
         it("resolves with a tuple of values") {
           let future1 = Future<Int>()
           let future2 = Future<String>()
-          let future3 = future1.merge(future2)
+          let future3 = merge(future1, future2)
           
           future1.resolve(42)
           future2.resolve("42")
@@ -228,7 +228,7 @@ class FutureSpec: QuickSpec {
         it("should fail") {
           let future1 = Future<Int>()
           let future2 = Future<String>()
-          let future3 = future1.merge(future2)
+          let future3 = merge(future1, future2)
 
           let error = NSError(domain: "", code: 42, userInfo: nil)
           
@@ -340,6 +340,7 @@ class FutureSpec: QuickSpec {
           expect(result) == 0
         }
       }
+      
       
     }
     
