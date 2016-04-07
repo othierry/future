@@ -8,6 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = "FutureSwift"
+  s.module_name      = "Future"
   s.version          = "1.0.0"
   s.summary          = "Light and Sexy promise implementation in Swift."
   s.homepage         = "https://github.com/othierry/future"
