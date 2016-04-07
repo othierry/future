@@ -109,7 +109,7 @@ Await allows you to block the running thread while a future completes. It makes 
 
 Let's take 3 random functions doing work asynchronously:
 
-```
+```swift
 func f1() -> Future<Void> {
   return future {
     NSThread.sleepForTimeInterval(1)
@@ -131,7 +131,7 @@ func f3() -> Future<Void> {
 
 You could compose and chain your futures like so (using standard `then(_:)`/`fail(_:)` approach):
 
-```
+```swift
 func doSomethingAsync() -> Future<Void> {
   return f1().then { _ -> Future<Void> in
     f2()
@@ -147,7 +147,7 @@ func doSomethingAsync() -> Future<Void> {
 
 Using await
 
-```
+```swift
 func doSomethingAsync() -> Future<Void> {
   return future {
     try await <- f1()
@@ -160,7 +160,7 @@ func doSomethingAsync() -> Future<Void> {
 Now let's define some other functions that have dependencies to each other.
 In the following example, `f2` needs the value resolved by `f1` to run, and `f3` need the value resolved by `f2`.
 
-```
+```swift
 func f1() -> Future<Int> { ... }
 func f2(x: Int) -> Future<String> { ... }
 func f3(x: String) -> Future<[String]> { ... }
@@ -168,7 +168,7 @@ func f3(x: String) -> Future<[String]> { ... }
 
 Using standard `then(_:)/fail(_:)` approach:
 
-```
+```swift
 f1().then { x -> Future<String> in
   f2(x)
 }.then { y -> Future<[String]> in
@@ -192,7 +192,7 @@ future {
 
 Or, if you want to be really sex:
 
-```
+```swift
 future {
   try await <- f3 <- f2 <- f1()
 }
