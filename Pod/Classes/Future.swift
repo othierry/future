@@ -557,6 +557,13 @@ public func any<A>(futures: [Future<A>]) -> Future<A> {
   }
 }
 
+public func reduce<A, B>(futures: [Future<A>], value: B, combine: (B, A) throws -> B) -> Future<B> {
+  return future {
+    let values = try await <- all(futures)
+    return try values.reduce(value, combine: combine)
+  }
+}
+
 /**
  Block calling thread until future completes
  
