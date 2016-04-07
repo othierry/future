@@ -23,19 +23,19 @@ It is the same thoughts as the Callback pattern with more flexibility and cleane
 
 ### Promise
 
-By design, this library merges Promise and Future patterns. A promise is just a writable (once) container that resolve or reject its contained future. A future is supposed to be read-only. In this library, a future exposes promise's `reject(_:)`/`resolve(_:)` methods the same way a promise would, they must be called only once. If you try to resolve an already resolved/rejected promise, an exception will be thrown.
+By design, this library merges Promise and Future patterns (`Promise` inherits from `Future`). In this library, `Promise` just defines a new initializer which a closure that takes the `Promise` itself so you have the control when to resolve/reject it.
 
-`promise(_:)` function acts a bit different than `future(_:)` function. Both returns futures but:
-- `future(_:)` takes a block taking no argument and returning a value. The block can throw an exception. If an exception is thrown, the future will reject using the catched error, otherwise it will resolve using the returned value.
-- `promise(_:)` takes a block taking a `Future` object. You are then responsible for calling `resolve(_:)` or `reject(_:)` on that future with the corresponding value/error.
+- `Future`'s initializer takes a block taking no argument and returning a value. The block can throw an exception. If an exception is thrown, the future will reject using the catched error, otherwise it will resolve using the returned value. You use it to do synchronous work.
+
+- `Promise`'s intiailizer takes a block taking a `Promise` object. You are then responsible for calling `resolve(_:)` or `reject(_:)` on that promise with the corresponding value/error. You use it to do asynchronous work.
 
 ### Composing futures
 
-- If you need to perform async code within your block (let's say you're using Alamofire that provides only non-blocking API calls) then use `promise<A>(_: Future<A> -> Void)`
+- If you need to perform async code within your block (let's say you're using Alamofire that provides only non-blocking API calls) then use `Promise`
 
 ```swift
 func fetchUser(id: Int) -> Future<User> {
-  return promise { promise in
+  return Promise { promise in
     // Network asynchronous call
     Alamofire.request { user, error in
       if let error = error {
@@ -55,11 +55,11 @@ func fetchUser(id: Int) -> Future<User> {
 
 ```
 
-- If you need to perform sync code within your block then use `future<A>(_: Void -> A)`
+- If you need to perform sync code within your block then use `Future`
 
 ```swift
 func fetchUser(id: Int) -> Future<Bool> {
-  return future {
+  return Future {
     for i in (0...10000000) {
       // Do something expansive...
     }
@@ -103,7 +103,7 @@ You can call `fail(_:)` on a future by passing a closure that takes an `ErrorTyp
 
 Await allows you to block the running thread while a future completes. It makes the use of multiple future a lot easier to read and understand.
 
-**NOTE** Do never call `await(_:)` from the main thread. If you try to call `await(_:)` from the main thread, an exception will be raised. As explained in ###, `then(_:)` blocks are scheduled to be run on the main queue. If the main thread is waiting for the future to be completed and the future needs its `then(_:)` blocks to be called in order to complete the future chaining cascade, it will deadlock. `await(_:)` is designed to be called from any thread but the main thread.
+**NOTE** Avoid to call `await(_:)` from the main thread. As explained in ###, `then(_:)` blocks are scheduled to be run on the main queue. If the main thread is waiting for the future to be completed and the future needs its `then(_:)` blocks to be called in order to complete the future chaining cascade, it will deadlock. `await(_:)` is designed to be called from any thread but the main thread.
 
 **Example:**
 
@@ -149,7 +149,7 @@ Using await
 
 ```swift
 func doSomethingAsync() -> Future<Void> {
-  return future {
+  return Future {
     try await <- f1()
     try await <- f2()
     try await <- f3()
@@ -181,7 +181,7 @@ f1().then { x -> Future<String> in
 Using `await(_:)` approach:
 
 ```
-future {
+Future {
   let x = try await <- f1()
   let y = try await <- f2(x)
   let z = try await <- f3(y)
@@ -193,7 +193,7 @@ future {
 Or, if you want to be really sex:
 
 ```swift
-future {
+Future {
   try await <- f3 <- f2 <- f1()
 }
 ```
