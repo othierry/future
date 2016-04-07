@@ -262,18 +262,18 @@ merge(f1, f2).then { x, y in
 
 #### wrapped
 
-`wrapped<A, B>(_: Future<A>, type: B.Type)` function takes a `Future` and an arbitrary `Type`. This is useful when a future actually resolves a value with a concrete type but the caller of the future expect another type your value type can be downcasted to. **NOTE: You must make sure that the value can be casted to the given type. Your program will crash otherwise**
+`wrap<A, B>(_: Future<A>, type: B.Type)` function takes a `Future` and an arbitrary `Type`. This is useful when a future actually resolves a value with a concrete type but the caller of the future expect another type your value type can be downcasted to. **NOTE: You must make sure that the value can be casted to the given type. Your program will crash otherwise**
 
 ```swift
 let f1: Future<String> = ...
-let f2 = f1.wrapped(AnyObject) // Is now a Future<AnyObject>
+let f2 = wrap(f1, to: AnyObject.self) // Is now a Future<AnyObject>
 ```
 
-`wrapped<A>(_: Future<A>)` function takes a `Future`. It returns a new future that resolve to `Void`. This is useful when a future actually resolves a value with a concrete type but the caller of the future do not care about this value and expect Void.
+`wrap<A>(_: Future<A>)` function takes a `Future`. It returns a new future that resolve to `Void`. This is useful when a future actually resolves a value with a concrete type but the caller of the future do not care about this value and expect Void.
 
 ```swift
 let f1: Future<Int> = ...
-let f2 = f1.wrapped() // Is now a Future<Void>
+let f2 = wrap(f1) // Is now a Future<Void>
 ```
 
 ## Author
