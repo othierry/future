@@ -19,7 +19,7 @@ pod "FutureSwift"
 
 Futures are used to execute blocks of code asynchronously in parallel efficently. They are a placeholder object for a value that may exist in the future.
 
-It is the same thoughts as the Callback pattern with more flexibility and cleaner syntax & code style. Futures are simple objects wrapping success and failure callbacks. They can be chained, one can depend on another, etc... Futures come with a set of methods & functions to provide an efficient control flow to the way they are performed.
+It is the same thoughts as the Callback pattern with more flexibility and cleaner syntax & code style. Futures are simple objects wrapping success and failure block. They can be chained, one can depend on another, etc... Futures come with a set of methods & functions to provide an efficient control flow to the way they are performed.
 
 ### Promise
 
@@ -86,16 +86,16 @@ func fetchUser(id: Int) -> Future<Bool> {
 
 #### Then
 
-You can pass completion callbacks to a future using the `then(_:)` method.
+You can pass completion blocks to a future using the `then(_:)` method.
 The callback can be one of the following:
 
 - `Void -> Void`: Ignores the value resolved by the `Future` and returns nothing.
 - `A -> Void`: Takes the value resolved by the future and returns nothing.
-- `A -> Future<B>`: Takes the value resolved by the future and returns a new future. the chain will continue when this returned future resolves or fails.
+- `A -> Future<B>`: Takes the value resolved by the future and returns a new future. the future chain will continue when this future resolves or fails.
 - `A -> B`: Takes the value resolved by the future and returns a new value. This value is the new value that will be passed to the rest of the futures chain.
 
   **NOTE**: This is NOT mutating the future's original value. A future's value is set only once (when resolved).
-  
+
 #### Fail
 
 You can call `fail(_:)` on a future by passing a closure that takes an `ErrorType` as parameter. When one of the future in the chain fails, this block will be called using the given error.
