@@ -469,7 +469,7 @@ public func wrap<A>(f: Future<A>) -> Future<Void> {
  with a concrete type but the caller of the future expect
  another type your value type can be downcasted to.
  */
-public func wrap<A, B>(f: Future<A>, type: B.Type) -> Future<B> {
+public func wrap<A, B>(f: Future<A>, to: B.Type) -> Future<B> {
   /// TODO: Check error when using as! instead of `unsafeBitCast`
   /// Why do we need `unsafeBitCast` ?
   return future {
