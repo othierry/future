@@ -265,9 +265,9 @@ f1.merge(f2).then { x, y in
 }
 ```
 
-#### wrapped
+#### wrap
 
-`Future#wrap<A, B>(_: B.Type)` method takes an arbitrary `Type`. This is useful when a future actually resolves a value with a concrete type but the caller of the future expect another type your value type can be downcasted to. **NOTE: You must make sure that the value can be casted to the given type. Your program will crash otherwise**
+`Future#wrap<A>(_: A.Type)` method takes an arbitrary `Type`. This is useful when a future actually resolves a value with a concrete type but the caller of the future expect another type your value type can be downcasted to. **NOTE: You must make sure that the value can be casted to the given type. Your program will crash otherwise**
 
 ```swift
 let f1: Future<String> = ...
