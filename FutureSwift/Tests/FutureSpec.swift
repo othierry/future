@@ -209,7 +209,7 @@ class FutureSpec: QuickSpec {
         it("resolves with a tuple of values") {
           let future1 = Future<Int>()
           let future2 = Future<String>()
-          let future3 = merge(future1, future2)
+          let future3 = future1.merge(future2)
           
           future1.resolve(42)
           future2.resolve("42")
@@ -228,7 +228,7 @@ class FutureSpec: QuickSpec {
         it("should fail") {
           let future1 = Future<Int>()
           let future2 = Future<String>()
-          let future3 = merge(future1, future2)
+          let future3 = future1.merge(future2)
 
           let error = NSError(domain: "", code: 42, userInfo: nil)
           
@@ -256,7 +256,7 @@ class FutureSpec: QuickSpec {
         }
         
         var results: [Int]!
-        let future = all(futures)
+        let future = futures.all()
         
         waitUntil { done in
           future.then {
@@ -294,7 +294,7 @@ class FutureSpec: QuickSpec {
           }
         }
 
-        let future = all(futures)
+        let future = futures.all()
 
         waitUntil { done in
           future.fail { _ in
@@ -325,7 +325,7 @@ class FutureSpec: QuickSpec {
         var result: Int!
         
         waitUntil { done in
-          any(futures).then {
+          futures.any().then {
             result = $0
             done()
           }
@@ -368,6 +368,64 @@ class FutureSpec: QuickSpec {
         let posts = try? await <- values <- login("foo", p: "bar")
         expect(posts) == ["bar", "foo"]
       }
+    }
+    
+    describe("any") {
+      func f1(x: Int) -> Future<Int> {
+        return Future {
+          NSThread.sleepForTimeInterval(Double(x))
+          return x
+        }
+      }
+      
+      func f2(x: Int) -> Future<Int> {
+        return Promise { promise in
+          NSThread.sleepForTimeInterval(Double(x))
+          promise.resolve(x)
+        }
+      }
+
+      func f3(x: Int) -> Future<Int> {
+        return Future {
+          NSThread.sleepForTimeInterval(Double(x))
+          throw NSError(domain: "", code: 1, userInfo: nil)
+        }
+      }
+      
+      func f4(x: Int) -> Future<Int> {
+        return Promise { promise in
+          NSThread.sleepForTimeInterval(Double(x))
+          promise.reject()
+        }
+      }
+
+      it("works") {
+        do {
+          let value = try await <- [f1(1), f2(2), f3(1)].any()
+          expect(value) == 1
+        } catch {
+          fail()
+        }
+      }
+
+      it("works2") {
+        do {
+          let value = try await <- [f2(1), f3(2)].any()
+          expect(value) == 1
+        } catch {
+          fail()
+        }
+      }
+
+      it("works3") {
+        do {
+          try await <- [f3(1), f4(2)].any()
+          fail()
+        } catch let error {
+          expect(error).toNot(beNil())
+        }
+      }
+
     }
     
   }

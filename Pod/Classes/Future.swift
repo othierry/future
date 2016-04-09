@@ -30,9 +30,10 @@ public enum FutureErrorCode: Int {
   case Timeout = 0
 }
 
-public class Future<A> {
+public class Future<A>: FutureType {
+  public typealias Value = A
   
-  private var group: dispatch_group_t
+  public private(set) var group: dispatch_group_t
   
   /// The resolved value `A`
   public var value: A!
@@ -40,24 +41,8 @@ public class Future<A> {
   /// The error used when the future was rejected
   public var error: ErrorType?
   
-  /// Timeout handking
+  /// Timeout
   public var timeoutTimer: NSTimer?
-  public var timeoutInterval: NSTimeInterval = 0 {
-    didSet {
-      // Invalidate current timer if any
-      self.timeoutTimer?.invalidate()
-      
-      // Consider 0 as no timeout
-      guard self.timeoutInterval > 0 else { return }
-      
-      self.timeoutTimer = NSTimer.scheduledTimerWithTimeInterval(
-        self.timeoutInterval,
-        target: self,
-        selector: #selector(performTimeout),
-        userInfo: nil,
-        repeats: false)
-    }
-  }
   
   /// The current state of the future
   public var state: FutureState = .Pending
@@ -225,13 +210,30 @@ public extension Future {
    
    Important: `f` is garanteed to be executed on main queue
    */
-  public func fail<E: ErrorType>(f: E! -> Void) -> Future<A> {
-    appendFail { f($0 as! E) }
+  public func fail<E: ErrorType>(f: E -> Void) -> Future<A> {
+    appendFail {
+      if let error = $0 as? E {
+        f(error)
+      }
+    }
     return self
   }
   
   public func timeout(seconds: NSTimeInterval) -> Future<A> {
-    self.timeoutInterval = seconds
+    // Invalidate current timer if any
+    self.timeoutTimer?.invalidate()
+    self.timeoutTimer = nil
+    
+    // Consider 0 as no timeout
+    guard seconds > 0 else { return self }
+    
+    self.timeoutTimer = NSTimer.scheduledTimerWithTimeInterval(
+      seconds,
+      target: self,
+      selector: #selector(performTimeout),
+      userInfo: nil,
+      repeats: false)
+
     return self
   }
   
@@ -426,104 +428,126 @@ public extension Future {
   
 }
 
-public func merge<A, B>(f: Future<A>, _ g: Future<B>) -> Future<(A, B)> {
-  return Future {
-    let x = try await <- f
-    let y = try await <- g
-    return (x, y)
-  }
-}
+extension Future {
 
-/**
- Wrap the result of a future into a new Future<Void>
- 
- This is useful when a future actually resolves a value
- with a concrete type but the caller of the future do not
- care about this value and expect Void
- */
-public func wrap<A>(f: Future<A>) -> Future<Void> {
-  return Future {
-    try await <- f
-  }
-}
-
-/**
- Wrap the result of a future into a new Future<C>
- 
- This is useful when a future actually resolves a value
- with a concrete type but the caller of the future expect
- another type your value type can be downcasted to.
- */
-public func wrap<A, B>(f: Future<A>, to: B.Type) -> Future<B> {
-  /// TODO: Check error when using as! instead of `unsafeBitCast`
-  /// Why do we need `unsafeBitCast` ?
-  return Future {
-    let object = try await <- f
-    return unsafeBitCast(object, B.self)
-  }
-}
-
-/**
- Wait until all futures complete and resolve by mapping the values
- of all the futures
- 
- If one future fails, the future will be rejected with the same error
- 
- Parameter futures: an array of futures to resolve
- 
- Returns: future object
- */
-public func all<A>(futures: [Future<A>]) -> Future<[A]> {
-  return Future {
-    try await <- futures
-  }
-}
-
-/**
- Wait until one future completes and resolve to its value
- 
- If all futures fails, the future will be rejected with the same error
- 
- Parameter futures: an array of futures to resolve
- 
- Returns: future object
- */
-public func any<A>(futures: [Future<A>]) -> Future<A> {
-  guard !futures.isEmpty else {
-    fatalError("Future.any called with empty futures array.")
-  }
-  
-  return Promise<A> { promise in
-    do {
-      try await <- futures.map { f in
-        Future {
-          if let value = try? await <- f {
-            promise.resolve(value)
-          }
-        }
-      }
-    } catch let error {
-      promise.reject(error)
+  /**
+   Wrap the result of a future into a new Future<Void>
+   
+   This is useful when a future actually resolves a value
+   with a concrete type but the caller of the future do not
+   care about this value and expect Void
+   */
+  public func wrap() -> Future<Void> {
+    return Future<Void> {
+      try await <- self
     }
   }
+  
+  /**
+   Wrap the result of a future into a new Future<C>
+   
+   This is useful when a future actually resolves a value
+   with a concrete type but the caller of the future expect
+   another type your value type can be downcasted to.
+   */
+  public func wrap<B>(_ type: B.Type) -> Future<B> {
+    /// TODO: Check error when using as! instead of `unsafeBitCast`
+    /// Why do we need `unsafeBitCast` ?
+    return Future<B> {
+      let object = try await <- self
+      return unsafeBitCast(object, B.self)
+    }
+  }
+
+  /**
+   Merge future instance with another Future. The returned future will
+   resolve a tuple contained the resolved values of both future.
+   If one future fails, the returned future will also fail with the same
+   error.
+   
+   Parameter future: the future object
+   Returns: A new future
+   */
+  public func merge<B>(future: Future<B>) -> Future<(A, B)> {
+    return Future<(A, B)> {
+      let x = try await <- self
+      let y = try await <- future
+      return (x, y)
+    }
+  }
+
 }
 
-/**
- Works as the normal reduce function for standar library but with futures
- 
- If all futures fails, the future will be rejected with the same error
- 
- Parameter futures: an array of futures to resolve
- Parameter value: the initial value
- Parameter combine: the reducer closure
- 
- Returns: future object
- */
-public func reduce<A, B>(futures: [Future<A>], value: B, combine: (B, A) throws -> B) -> Future<B> {
-  return Future {
-    let values = try await <- all(futures)
-    return try values.reduce(value, combine: combine)
+extension CollectionType where Generator.Element: FutureType {
+
+  /**
+   Wait until all futures complete and resolve by mapping the values
+   of all the futures
+   
+   If one future fails, the future will be rejected with the same error
+   
+   Parameter futures: an array of futures to resolve
+   
+   Returns: future object
+   */
+  public func all() -> Future<[Generator.Element.Value]> {
+    return Future {
+      try await <- self
+    }
   }
+
+  /**
+   Wait until one future completes and resolve to its value
+   
+   If all futures fails, the future will be rejected with a nil error
+   
+   Parameter futures: an array of futures to resolve
+   
+   Returns: future object
+   */
+  public func any() -> Future<Generator.Element.Value> {
+    guard !isEmpty else {
+      fatalError("Future.any called with empty futures array.")
+    }
+    
+    return Promise { promise in
+      do {
+        try await <- self.map { future in
+          Future {
+            if let value = try? await <- future {
+              promise.resolve(value)
+            }
+          }
+        }
+        
+        // No futures have resolved
+        if promise.state != .Resolved {
+          promise.reject(nil)
+        }
+      } catch let error {
+        promise.reject(error)
+      }
+    }
+  }
+  
+  /**
+   Works as the normal reduce function for standar library but with futures
+   
+   If all futures fails, the future will be rejected with the same error
+   
+   Parameter futures: an array of futures to resolve
+   Parameter value: the initial value
+   Parameter combine: the reducer closure
+   
+   Returns: future object
+   */
+  public func reduce<B>(value: B, combine: (B, Generator.Element.Value) throws -> B) -> Future<B> {
+    return Future {
+      let values = try await <- self.all()
+      return try values.reduce(value, combine: combine)
+    }
+  }
+
 }
 
 /**
@@ -535,19 +559,20 @@ public func reduce<A, B>(futures: [Future<A>], value: B, combine: (B, A) throws 
  
  Returns: the value the future resolved to
  */
-public func await<A>(future: Future<A>) throws -> A {
+public func await<A where A: FutureType>(future: A) throws -> A.Value {
   dispatch_group_wait(
     future.group,
-    future.timeoutInterval > 0
-      ? UInt64(future.timeoutInterval)
-      : DISPATCH_TIME_FOREVER)
+    DISPATCH_TIME_FOREVER)
   
   switch future.state {
   case .Resolved:
     return future.value
   case .Rejected:
-    throw future.error ?? NSError(domain: NSGenericException, code: 42, userInfo: nil)
+    throw future.error ?? NSError(
+      domain: NSGenericException,
+      code: 42,
+      userInfo: nil)
   default:
-    throw NSError(domain: NSInternalInconsistencyException, code: -1, userInfo: nil)
+    fatalError()
   }
 }

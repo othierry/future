@@ -37,6 +37,7 @@
 		4F0468E51CB3F38400E996F9 /* Future.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F0468E31CB3F38400E996F9 /* Future.swift */; };
 		4F0468E61CB3F38400E996F9 /* Operators.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F0468E41CB3F38400E996F9 /* Operators.swift */; };
 		4F0469641CB6B20600E996F9 /* Promise.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F0469631CB6B20600E996F9 /* Promise.swift */; };
+		4F0469991CB941CD00E996F9 /* FutureType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F0469981CB941CD00E996F9 /* FutureType.swift */; };
 		5104AE2989305145BF446E633B567924 /* EndWith.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EE5DB72110FF4FE8D16C90A617EFD92 /* EndWith.swift */; };
 		52CDF61ADE0FCC38909080ECEDBBBE17 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E5E3CD16DA34D0D08F766AB21A90FAC /* XCTest.framework */; };
 		539659DABE26226BD5FFBF69530C32B0 /* Filter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F17FBDF6FF6B666A3D102EDD81DFE416 /* Filter.swift */; };
@@ -169,6 +170,7 @@
 		4F0468E31CB3F38400E996F9 /* Future.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Future.swift; sourceTree = "<group>"; };
 		4F0468E41CB3F38400E996F9 /* Operators.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Operators.swift; sourceTree = "<group>"; };
 		4F0469631CB6B20600E996F9 /* Promise.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Promise.swift; sourceTree = "<group>"; };
+		4F0469981CB941CD00E996F9 /* FutureType.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FutureType.swift; sourceTree = "<group>"; };
 		51465DCF8ECE9AE4DD3DECD5656849CE /* Expectation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Expectation.swift; path = Sources/Nimble/Expectation.swift; sourceTree = "<group>"; };
 		5C8C873CB5F43A0FA130C9B9FF74B6B0 /* SatisfyAnyOf.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SatisfyAnyOf.swift; path = Sources/Nimble/Matchers/SatisfyAnyOf.swift; sourceTree = "<group>"; };
 		5CE93FA4667205AEE386C8648ABDC57E /* BeCloseTo.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BeCloseTo.swift; path = Sources/Nimble/Matchers/BeCloseTo.swift; sourceTree = "<group>"; };
@@ -289,6 +291,7 @@
 			isa = PBXGroup;
 			children = (
 				4F0468E31CB3F38400E996F9 /* Future.swift */,
+				4F0469981CB941CD00E996F9 /* FutureType.swift */,
 				4F0469631CB6B20600E996F9 /* Promise.swift */,
 				4F0468E41CB3F38400E996F9 /* Operators.swift */,
 			);
@@ -779,6 +782,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4F0469991CB941CD00E996F9 /* FutureType.swift in Sources */,
 				4F0468E51CB3F38400E996F9 /* Future.swift in Sources */,
 				4F0468E61CB3F38400E996F9 /* Operators.swift in Sources */,
 				49E2C74B57536E9CE7D48BEA4198FE9A /* FutureSwift-dummy.m in Sources */,
