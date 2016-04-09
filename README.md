@@ -67,7 +67,6 @@ func fetchUser(id: Int) -> Future<Bool> {
     return true
   }
 }
-
 ```
 
 
@@ -111,19 +110,19 @@ Let's take 3 random functions doing work asynchronously:
 
 ```swift
 func f1() -> Future<Void> {
-  return future {
+  return Future {
     NSThread.sleepForTimeInterval(1)
   }
 }
 
 func f2() -> Future<Void> {
-  return future {
+  return Future {
     NSThread.sleepForTimeInterval(2)
   }
 }
 
 func f3() -> Future<Void> {
-  return future {
+  return Future {
     NSThread.sleepForTimeInterval(3)
   }
 }
@@ -204,57 +203,63 @@ Future {
 
 ### Control flow
 
+#### CollectionType extension
+
+This library provides an extension for `CollectionType` containing `FutureType` objects. `Future` conforms to `FutureType`.
+
 #### all
 
-`all(_:)` function takes an list of `Future` and returns a new `Future`. The returned future will resolve when all the futures are resolved and will expose a list of the values returned by the futures. If one of the future fails, the returned future will directly fail with the same error.
+`CollectionType#all()` method returns a new `Future`. The returned future will resolve when all the futures contained in `self` are resolved and will expose a list of the values returned by the futures. If one of the future fails, the returned future will directly fail with the same error.
 
 **Example**
 
 ```swift
 let futures: [Future<Int>] = [f1, f2, ...]
 
-all(futures).then { values in
+futures.all().then { values in
   // All futures completed, values is an Array<Int>
 }
 ```
 
 #### any
 
-`any(_:)` function takes a list of `Future` and returns a new `Future`. The returned future will resolve as soon as one of the future is resolved and will expose the value. If all the futures fail, the returned future will also fail with a `nil` error.
+`CollectionType#any()` method returns a new `Future`. The returned future will resolve as soon as one of the future contained in `self` is resolved and will expose the value. If all the futures fail, the returned future will also fail with a `nil` error.
 
 **Example**
 
 ```swift
 let futures: [Future<Int>] = [f1, f2, ...]
 
-any(futures).then { value in
+futures.any().then { value in
   // All futures completed, values is an Int
 }
 ```
 
 #### reduce
 
-`reduce(_:)` function takes a list of `Future` and returns a new `Future`. The function is the same as the standard library reduce function but it reduces a list of futures instead of a list of a values.
+`CollectionType#reduce()` method is the same as the standard library reduce function but it reduces a list of futures instead of a list of a values.
 
 **Example**
 
 ```swift
 let futures: [Future<Int>] = [f1, f2, ...]
 
-reduce(futures, 0, combine: +).then { value in
+futures.reduce(0, combine: +).then { value in
   // All futures completed, values is an Int
 }
 ```
 
+#### Future extension
+
 #### merge
 
-`merge(_:)` function takes 2 `Future` and returns a single `Future` that will resolve to a tuple of 2 values that correspond to the values of the 2 future. If one future fails, the returned future will also fail with the same error.
+`Future#merge(_:)` method takes a future and returns a new `Future` that will resolve to a tuple of 2 values that correspond to the values of `self` and the given future. If one future fails, the returned future will also fail with the same error.
 
 ```swift
 let f1: Future<Int> = ...
 let f2: Future<String> = ...
 
-merge(f1, f2).then { x, y in
+f1.merge(f2).then { x, y in
   // x is an Int
   // y is a String
 }
@@ -262,18 +267,18 @@ merge(f1, f2).then { x, y in
 
 #### wrapped
 
-`wrap<A, B>(_: Future<A>, type: B.Type)` function takes a `Future` and an arbitrary `Type`. This is useful when a future actually resolves a value with a concrete type but the caller of the future expect another type your value type can be downcasted to. **NOTE: You must make sure that the value can be casted to the given type. Your program will crash otherwise**
+`Future#wrap<A, B>(_: B.Type)` method takes an arbitrary `Type`. This is useful when a future actually resolves a value with a concrete type but the caller of the future expect another type your value type can be downcasted to. **NOTE: You must make sure that the value can be casted to the given type. Your program will crash otherwise**
 
 ```swift
 let f1: Future<String> = ...
-let f2 = wrap(f1, to: AnyObject.self) // Is now a Future<AnyObject>
+let f2 = f1.wrap(AnyObject) // Is now a Future<AnyObject>
 ```
 
-`wrap<A>(_: Future<A>)` function takes a `Future`. It returns a new future that resolve to `Void`. This is useful when a future actually resolves a value with a concrete type but the caller of the future do not care about this value and expect Void.
+`Future#wrap()` returns a new future that resolve to `Void`. This is useful when a future actually resolves a value with a concrete type but the caller of the future do not care about this value and expect Void.
 
 ```swift
 let f1: Future<Int> = ...
-let f2 = wrap(f1) // Is now a Future<Void>
+let f2 = f1.wrap() // Is now a Future<Void>
 ```
 
 ## Author
