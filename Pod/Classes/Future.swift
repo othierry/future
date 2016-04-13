@@ -439,7 +439,7 @@ extension Future {
    */
   public func wrap() -> Future<Void> {
     return Future<Void> {
-      try await <- self
+      try self.await()
     }
   }
   
@@ -454,8 +454,7 @@ extension Future {
     /// TODO: Check error when using as! instead of `unsafeBitCast`
     /// Why do we need `unsafeBitCast` ?
     return Future<B> {
-      let object = try await <- self
-      return unsafeBitCast(object, B.self)
+      return try unsafeBitCast(self.await(), B.self)
     }
   }
 
@@ -470,12 +469,24 @@ extension Future {
    */
   public func merge<B>(future: Future<B>) -> Future<(A, B)> {
     return Future<(A, B)> {
-      let x = try await <- self
-      let y = try await <- future
+      let x = try self.await()
+      let y = try future.await()
       return (x, y)
     }
   }
 
+  /**
+   Block calling thread until future completes
+   
+   If the future fails, an exception will be thrown with the error
+   
+   Parameter future: the future object
+   
+   Returns: the value the future resolved to
+   */
+  public func await() throws -> A {
+    return try _await <- self
+  }
 }
 
 extension CollectionType where Generator.Element: FutureType {
@@ -575,4 +586,9 @@ public func await<A where A: FutureType>(future: A) throws -> A.Value {
   default:
     fatalError()
   }
+}
+
+
+private func _await<A where A: FutureType>(future: A) throws -> A.Value {
+  return try await(future)
 }
