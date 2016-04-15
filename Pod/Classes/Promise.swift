@@ -23,9 +23,16 @@ public class Promise<A>: Future<A> {
    */
   public required init(_ f: Promise<A> -> Void) {
     super.init()
-    
-    dispatch_async(futureQueueConcurrent) {
+
+    // If we are already running on future's queue, they just asynchronously
+    // call the function to avoid thread overflow and prevent deadlocking
+    // due to future inter dependencies
+    if self.isFutureQueue {
       f(self)
+    } else {
+      dispatch_async(futureQueueConcurrent) {
+        f(self)
+      }
     }
   }
   

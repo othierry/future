@@ -57,12 +57,17 @@ public class Future<A>: FutureType {
   /// Important: When resolved, the fuctture will discard `fail` chain fonctions.
   /// When rejected, the future will discard `then` chain fonctions
   private var chain: (then: [A -> Void], fail: [ErrorType? -> Void], finally: [Void -> Void]) = ([], [], [])
-  
+
+  /// True if the current running queue is the future queue, false otherwise
+  internal var isFutureQueue: Bool {
+    return dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL) == dispatch_queue_get_label(futureQueueConcurrent)
+  }
+
   public init() {
     self.group = dispatch_group_create()
     dispatch_group_enter(self.group)
   }
-  
+
   /**
    Designated static initializer for sync futures.
    The method executes the block asynchronously in background queue
@@ -75,11 +80,22 @@ public class Future<A>: FutureType {
   public convenience init(_ f: Void throws -> A) {
     self.init()
 
-    dispatch_async(futureQueueConcurrent) {
+    // If we are already running on future's queue, they just asynchronously
+    // call the function to avoid thread overflow and prevent deadlocking
+    // due to future inter dependencies
+    if self.isFutureQueue {
       do {
         try self.resolve(f())
       } catch let error {
         self.reject(error)
+      }
+    } else {
+      dispatch_async(futureQueueConcurrent) {
+        do {
+          try self.resolve(f())
+        } catch let error {
+          self.reject(error)
+        }
       }
     }
   }
