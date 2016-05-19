@@ -80,17 +80,8 @@ public class Future<A>: FutureType {
   public convenience init(_ f: Void throws -> A) {
     self.init()
 
-    // If we are already running on future's queue, they just asynchronously
-    // call the function to avoid thread overflow and prevent deadlocking
-    // due to future inter dependencies
-    if self.isFutureQueue {
-      do {
-        try self.resolve(f())
-      } catch let error {
-        self.reject(error)
-      }
-    } else {
-      dispatch_async(futureQueueConcurrent) {
+    let run = {
+      autoreleasepool {
         do {
           try self.resolve(f())
         } catch let error {
@@ -98,7 +89,17 @@ public class Future<A>: FutureType {
         }
       }
     }
+
+    // If we are already running on future's queue, they just asynchronously
+    // call the function to avoid thread overflow and prevent deadlocking
+    // due to future inter dependencies
+    if self.isFutureQueue {
+      run()
+    } else {
+      dispatch_async(futureQueueConcurrent, run)
+    }
   }
+
 
   deinit {
     self.timeoutTimer?.invalidate()
