@@ -400,33 +400,34 @@ class FutureSpec: QuickSpec {
       }
 
       it("works") {
-        do {
-          let value = try await <- [f1(1), f2(2), f3(1)].any()
-          expect(value) == 1
-        } catch {
-          fail()
+        waitUntil(timeout: 5) { done in
+          [f1(1), f2(2), f3(1)].any().then { value in
+            expect(value) == 1
+          }.fail { _ in
+            fail()
+          }.finally(done)
         }
       }
 
-      it("works2") {
-        do {
-          let value = try await <- [f2(1), f3(2)].any()
-          expect(value) == 1
-        } catch {
-          fail()
+      it("works2") {2
+        waitUntil(timeout: 5) { done in
+          [f2(1), f3(2)].any().then { value in
+            expect(value) == 1
+          }.fail { _ in
+            fail()
+          }.finally(done)
         }
       }
 
       it("works3") {
-        do {
-          try await <- [f3(1), f4(2)].any()
-          fail()
-        } catch let error {
-          expect(error).toNot(beNil())
+        waitUntil(timeout: 5) { done in
+          [f3(1), f4(2)].any().then { value in
+            fail()
+          }.fail { error in
+            expect(error).to(beNil())
+          }.finally(done)
         }
       }
-
     }
-    
   }
 }
