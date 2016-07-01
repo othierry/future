@@ -543,7 +543,6 @@ extension CollectionType where Generator.Element: FutureType {
         if let future = $0 as? Future<Generator.Element.Value> {
           future.then { x in
             if promise.state != .Resolved {
-              print("resolving")
               promise.resolve(x)
             }
           }
@@ -551,14 +550,13 @@ extension CollectionType where Generator.Element: FutureType {
       }
 
       // Await all futures to complete
-      try? await <- self
+      let _ = try? await <- self
 
       // Dispatch on main queue to preserve FIFO
       // then() blocks invokation order
       dispatch_async(dispatch_get_main_queue()) {
         // No futures have resolved
         if promise.state != .Resolved {
-          print("rejecting")
           promise.reject(nil)
         }
       }
