@@ -455,9 +455,7 @@ extension Future {
    care about this value and expect Void
    */
   public func wrap() -> Future<Void> {
-    return Future<Void> {
-      try self.await()
-    }
+    return self.then { _ -> Void in }
   }
   
   /**
@@ -470,8 +468,10 @@ extension Future {
   public func wrap<B>(type: B.Type) -> Future<B> {
     /// TODO: Check error when using as! instead of `unsafeBitCast`
     /// Why do we need `unsafeBitCast` ?
-    return Future<B> {
-      return try unsafeBitCast(self.await(), B.self)
+    return self.then { x -> Future<B> in
+      Future<B> {
+        try unsafeBitCast(self.await(), B.self)
+      }
     }
   }
 
@@ -485,10 +485,10 @@ extension Future {
    Returns: A new future
    */
   public func merge<B>(future: Future<B>) -> Future<(A, B)> {
-    return Future<(A, B)> {
-      let x = try self.await()
-      let y = try future.await()
-      return (x, y)
+    return self.then { x -> Future<(A, B)> in
+      future.then { y in
+        (x, y)
+      }
     }
   }
 
@@ -539,25 +539,32 @@ extension CollectionType where Generator.Element: FutureType {
     }
     
     return Promise { promise in
-      do {
-        try await <- self.map { future in
-          Future {
-            if let value = try? await <- future {
-              promise.resolve(value)
+      self.forEach {
+        if let future = $0 as? Future<Generator.Element.Value> {
+          future.then { x in
+            if promise.state != .Resolved {
+              print("resolving")
+              promise.resolve(x)
             }
           }
         }
-        
+      }
+
+      // Await all futures to complete
+      try? await <- self
+
+      // Dispatch on main queue to preserve FIFO
+      // then() blocks invokation order
+      dispatch_async(dispatch_get_main_queue()) {
         // No futures have resolved
         if promise.state != .Resolved {
+          print("rejecting")
           promise.reject(nil)
         }
-      } catch let error {
-        promise.reject(error)
       }
     }
   }
-  
+
   /**
    Works as the normal reduce function for standar library but with futures
    
