@@ -467,11 +467,8 @@ extension Future {
    */
   public func wrap<B>(type: B.Type) -> Future<B> {
     /// TODO: Check error when using as! instead of `unsafeBitCast`
-    /// Why do we need `unsafeBitCast` ?
-    return self.then { x -> Future<B> in
-      Future<B> {
-        try unsafeBitCast(self.await(), B.self)
-      }
+    return self.then { x -> B in
+      unsafeBitCast(x, B.self)
     }
   }
 
