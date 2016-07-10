@@ -516,11 +516,30 @@ extension CollectionType where Generator.Element: FutureType {
    Returns: future object
    */
   public func all() -> Future<[Generator.Element.Value]> {
-    return Future {
-      try await <- self
+    guard
+      let futures = self as? [Future<Generator.Element.Value>]
+      where self.count > 0
+      else { return Future<[Generator.Element.Value]>.resolve([]) }
+
+    var token: dispatch_once_t = 0
+    return Promise<[Generator.Element.Value]> { promise in
+      futures.forEach {
+        $0.then { _ in
+          let pendings = futures.filter { $0.state == .Pending }
+          if pendings.isEmpty {
+            dispatch_once(&token) {
+              let values = futures.flatMap { $0.value }
+              promise.resolve(values)
+            }
+          }
+        }.fail { error in
+          dispatch_once(&token) {
+            promise.reject(error)
+          }
+        }
+      }
     }
   }
-
   /**
    Wait until one future completes and resolve to its value
    
