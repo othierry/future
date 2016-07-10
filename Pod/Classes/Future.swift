@@ -357,14 +357,14 @@ public extension Future {
     
     // Store given value
     self.value = value
-    
+
+    // Assign state as .Resolved
+    self.state = .Resolved
+
     // Invoke all success fonctions in fonctions chain
     resolveAll()
     finalizeAll()
-    
-    // Assign state as .Resolved
-    self.state = .Resolved
-    
+
     // Leave group not future is resolved
     dispatch_group_leave(self.group)
     
@@ -393,14 +393,14 @@ public extension Future {
     
     // Store given error
     self.error = error
-    
+
+    // Assign state as .Rejected
+    self.state = .Rejected
+
     // Invoke failure functions in fonctions chain
     rejectAll()
     finalizeAll()
-    
-    // Assign state as .Rejected
-    self.state = .Rejected
-    
+
     dispatch_group_leave(self.group)
     
     // Release lock
