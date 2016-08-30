@@ -157,10 +157,22 @@ public extension Future {
    Important: `f` is garanteed to be executed on main queue
    */
   public func then(f: A -> Void) -> Future<A> {
-    appendThen { value in f(value) }
+    return then(dispatch_get_main_queue(), f: f)
+  }
+
+  /**
+   Add a fonction to fonction `then` chain.
+
+   Parameter queue: The queue on which the block must execute. default is dispatch_get_main_queue()
+   Parameter f: The fonction to execute
+
+   Returns: self
+   */
+  public func then(queue: dispatch_queue_t, f: A -> Void) -> Future<A> {
+    appendThen(queue) { value in f(value) }
     return self
   }
-  
+
   /**
    Add a fonction to fonction `then` chain. This fonction returns
    a new type `B`. A new future of type B is created and
@@ -173,19 +185,33 @@ public extension Future {
    Important: `f` is garanteed to be executed on main queue
    */
   public func then<B>(f: A -> B) -> Future<B> {
+    return self.then(dispatch_get_main_queue(), f: f)
+  }
+
+  /**
+   Add a fonction to fonction `then` chain. This fonction returns
+   a new type `B`. A new future of type B is created and
+   returned as the result of this fonction
+
+   Parameter queue: The queue on which the block must execute. default is dispatch_get_main_queue()
+   Parameter f: The fonction to execute
+
+   Returns: the future
+   */
+  public func then<B>(queue: dispatch_queue_t, f: A -> B) -> Future<B> {
     let future = Future<B>()
-    
-    appendThen { value in
+
+    appendThen(queue) { value in
       future.resolve(f(value))
     }
-    
-    appendFail { error in
+
+    appendFail(queue) { error in
       future.reject(error)
     }
-    
+
     return future
   }
-  
+
   /**
    Add a fonction to fonction `then` chain. This fonction returns
    a new Future of type `B`.
@@ -197,29 +223,64 @@ public extension Future {
    Important: `f` is garanteed to be executed on main queue
    */
   public func then<B>(f: A -> Future<B>) -> Future<B> {
+    return self.then(dispatch_get_main_queue(), f: f)
+  }
+
+  /**
+   Add a fonction to fonction `then` chain. This fonction returns
+   a new Future of type `B`.
+
+   Parameter queue: The queue on which the block must execute. default is dispatch_get_main_queue()
+   Parameter f: The fonction to execute
+
+   Returns: the future
+   */
+  public func then<B>(queue: dispatch_queue_t, f: A -> Future<B>) -> Future<B> {
     let future = Future<B>()
-    
-    appendThen { value in
+
+    appendThen(queue) { value in
       f(value)
-        .then(future.resolve)
-        .fail(future.reject)
-      return
+        .then(queue) { future.resolve($0) }
+        .fail(queue) { future.reject($0) }
     }
-    
-    appendFail { error in
+
+    appendFail(queue) { error in
       future.reject(error)
     }
-    
+
     return future
   }
-  
-  public func fail(f: NSError? -> Void) -> Future<A> {
-    appendFail { f($0 as? NSError) }
-    return self
-  }
-  
+
   /**
    Add a fonction to fonction `fail` chain.
+
+   Parameter f: The fonction to execute
+
+   Returns: self
+
+   Important: `f` is garanteed to be executed on main queue
+   */
+  public func fail(f: NSError? -> Void) -> Future<A> {
+    return self.fail(dispatch_get_main_queue(), f: f)
+  }
+
+  /**
+   Add a fonction to fonction `fail` chain.
+
+   Parameter queue: The queue on which the block must execute. default is dispatch_get_main_queue()
+   Parameter f: The fonction to execute
+
+   Returns: self
+   */
+  public func fail(queue: dispatch_queue_t, f: NSError? -> Void) -> Future<A> {
+    appendFail(queue) {
+      f($0 as? NSError)
+    }
+    return self
+  }
+
+  /**
+   Add a fonction to fonction `fail` chain, with a custom ErrorType
    
    Parameter f: The fonction to execute
    
@@ -227,15 +288,25 @@ public extension Future {
    
    Important: `f` is garanteed to be executed on main queue
    */
-  public func fail<E: ErrorType>(f: E -> Void) -> Future<A> {
-    appendFail {
-      if let error = $0 as? E {
-        f(error)
-      }
+  public func fail<E: ErrorType>(f: E? -> Void) -> Future<A> {
+    return self.fail(dispatch_get_main_queue(), f: f)
+  }
+
+  /**
+   Add a fonction to fonction `fail` chain, with a custom ErrorType
+
+   Parameter queue: The queue on which the block must execute. default is dispatch_get_main_queue()
+   Parameter f: The fonction to execute
+
+   Returns: self
+   */
+  public func fail<E: ErrorType>(queue: dispatch_queue_t, f: E? -> Void) -> Future<A> {
+    appendFail(queue) {
+      f($0 as? E)
     }
     return self
   }
-  
+
   public func timeout(seconds: NSTimeInterval) -> Future<A> {
     // Invalidate current timer if any
     self.timeoutTimer?.invalidate()
@@ -253,25 +324,50 @@ public extension Future {
 
     return self
   }
-  
+
+  /**
+   Add a fonction to fonction `finally` chain.
+
+   Parameter f: The fonction to execute
+
+   Returns: self
+
+   Important: `f` is garanteed to be executed on main queue
+   */
   public func finally(f: Void -> Void) -> Future<A> {
-    appendFinally(f)
+    return self.finally(dispatch_get_main_queue(), f: f)
+  }
+
+  /**
+   Add a fonction to fonction `finally` chain.
+
+   Parameter queue: The queue on which the block must execute. default is dispatch_get_main_queue()
+   Parameter f: The fonction to execute
+
+   Returns: self
+   */
+  public func finally(queue: dispatch_queue_t, f: Void -> Void) -> Future<A> {
+    appendFinally(queue, f: f)
     return self
   }
   
   /**
-   Append fonction in fonction `finally` chain
+   Append fonction in fonction `then` chain
    
    Important: This fonction locks the future instance
    to do its work. This prevent inconsistent states
    that can pop when multiple threads access the
    same future instance
    */
-  private func appendThen(f: A -> Void) {
+  private func appendThen(queue: dispatch_queue_t, f: A -> Void) {
     // Avoid concurrent access, synchronise threads
     objc_sync_enter(self)
     
-    self.chain.then.append(f)
+    self.chain.then.append { value in
+      dispatch_async(queue) {
+        f(value)
+      }
+    }
     
     // If future is already resolved, invoke functions chain now
     if state == .Resolved {
@@ -290,11 +386,15 @@ public extension Future {
    that can pop when multiple threads access the
    same future instance
    */
-  private func appendFail(f: ErrorType? -> Void) {
+  private func appendFail(queue: dispatch_queue_t, f: ErrorType? -> Void) {
     // Avoid concurrent access, synchronise threads
     objc_sync_enter(self)
     
-    self.chain.fail.append(f)
+    self.chain.fail.append { error in
+      dispatch_async(queue) {
+        f(error)
+      }
+    }
     
     // If future is already rejected, invoke functions chain now
     if state == .Rejected {
@@ -314,11 +414,13 @@ public extension Future {
    that can pop when multiple threads access the
    same future instance
    */
-  private func appendFinally(f: Void -> Void) {
+  private func appendFinally(queue: dispatch_queue_t, f: Void -> Void) {
     // Avoid concurrent access, synchronise threads
     objc_sync_enter(self)
     
-    self.chain.finally.append(f)
+    self.chain.finally.append {
+      dispatch_async(queue, f)
+    }
     
     // If future is already resolved, invoke functions chain now
     if state != .Pending {
@@ -413,9 +515,7 @@ public extension Future {
    */
   private func resolveAll() {
     for f in self.chain.then {
-      dispatch_async(dispatch_get_main_queue()) {
-        f(self.value)
-      }
+      f(self.value)
     }
     
     self.chain.then = []
@@ -427,9 +527,7 @@ public extension Future {
    */
   private func rejectAll() {
     for f in self.chain.fail {
-      dispatch_async(dispatch_get_main_queue()) {
-        f(self.error)
-      }
+      f(self.error)
     }
     
     self.chain.fail = []
@@ -437,7 +535,7 @@ public extension Future {
   
   private func finalizeAll() {
     for f in self.chain.finally {
-      dispatch_async(dispatch_get_main_queue(), f)
+      f()
     }
     
     self.chain.finally = []
@@ -568,13 +666,9 @@ extension CollectionType where Generator.Element: FutureType {
       // Await all futures to complete
       let _ = try? await <- self
 
-      // Dispatch on main queue to preserve FIFO
-      // then() blocks invokation order
-      dispatch_async(dispatch_get_main_queue()) {
-        // No futures have resolved
-        if promise.state != .Resolved {
-          promise.reject(nil)
-        }
+      // No futures have resolved
+      if promise.state != .Resolved {
+        promise.reject(nil)
       }
     }
   }
