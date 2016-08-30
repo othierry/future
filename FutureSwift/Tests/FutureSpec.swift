@@ -2,30 +2,54 @@ import Quick
 import Nimble
 import FutureSwift
 
+func futures_wait(f: Void -> [Future<Void>]) {
+  waitUntil(timeout: 10) { done in
+    let futures = f()
+    var x = futures.count
+    futures.forEach {
+      $0.finally {
+        x -= 1
+        if x == 0 {
+          done()
+        }
+      }
+    }
+  }
+}
+
 class FutureSpec: QuickSpec {
-  
+
   override func spec() {
     describe("Future") {
-      
+
       it("can resolve") {
         var thenCalledWhenResolved = false
         var thenCalledDirectlyWhenAlreadyResolved = false
         var failCalled = false
-        
-        let future = Future<Void>()
-        future.then { thenCalledWhenResolved = true }
-        future.fail { _ in failCalled = true }
-        future.resolve()
-        future.then { thenCalledDirectlyWhenAlreadyResolved = true }
-        future.fail { _ in failCalled = true }
-        
-        // Wait for async call dispatched on main queue
-        // Wait for async call dispatched on main queue
-        CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1, false)
 
+        let future = Future<Void>()
+
+        futures_wait() {
+          let futures = [
+            future.then { thenCalledWhenResolved = true },
+            future.fail { _ in failCalled = true }
+          ]
+
+          future.resolve()
+
+          return futures
+        }
+
+        expect(thenCalledWhenResolved) == true
         expect(future.state) == FutureState.Resolved
         expect(failCalled) == false
-        expect(thenCalledWhenResolved) == true
+
+        futures_wait {
+          [
+            future.then { thenCalledDirectlyWhenAlreadyResolved = true }
+          ]
+        }
+
         expect(thenCalledDirectlyWhenAlreadyResolved) == true
       }
 
@@ -35,108 +59,136 @@ class FutureSpec: QuickSpec {
         var thenCalled = false
         
         let future = Future<Void>()
-        future.fail { _ in failCalledWhenRejected = true }
-        future.then { thenCalled = true }
-        future.reject()
-        future.then { thenCalled = true }
-        future.fail { _ in failCalledDirectlyWhenAlreadyRejected = true }
-        
-        // Wait for async call dispatched on main queue
-        waitUntil { done in done() }
-        
+
+        futures_wait {
+          let futures = [
+            future.fail { _ in failCalledWhenRejected = true },
+            future.then { thenCalled = true }
+          ]
+
+          future.reject()
+
+          return futures
+        }
+
         expect(future.state) == FutureState.Rejected
         expect(thenCalled) == false
         expect(failCalledWhenRejected) == true
+
+        futures_wait {
+          [
+            future.fail { _ in failCalledDirectlyWhenAlreadyRejected = true }
+          ]
+        }
+
         expect(failCalledDirectlyWhenAlreadyRejected) == true
       }
 
-      it("always resolve/reject on main queue") {
-        var isMainQueueOnResolve = false
-        var isMainQueueOnReject = false
-        
-        let futureResolved = Future<Void>()
-        let futureRejected = Future<Void>()
-        
-        futureResolved.then { isMainQueueOnResolve = NSThread.isMainThread() }
-        futureRejected.fail { _ in isMainQueueOnReject = NSThread.isMainThread() }
-        
-        futureResolved.resolve()
-        futureRejected.reject(nil)
-        
-        // Wait for async call dispatched on main queue
-        waitUntil { done in done() }
-        
-        expect(futureResolved.state) == FutureState.Resolved
-        expect(futureRejected.state) == FutureState.Rejected
-        expect(isMainQueueOnResolve) == true
-        expect(isMainQueueOnReject) == true
+      it("resolves/reject on specified queue") {
+        for queue in [dispatch_get_main_queue(), dispatch_queue_create(NSUUID().UUIDString, DISPATCH_QUEUE_CONCURRENT)] {
+          var resolveQueueLabel: UnsafePointer<Int8>!
+          var rejectQueueLabel: UnsafePointer<Int8>!
+          var finallyQueueLabel: UnsafePointer<Int8>!
+
+          let futureResolved = Future<Void>()
+          let futureRejected = Future<Void>()
+
+          futures_wait {
+            let futures = [
+              futureResolved.then(queue) {
+                resolveQueueLabel = dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL)
+              },
+              futureRejected.fail(queue) { _ in
+                rejectQueueLabel = dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL)
+              },
+              futureRejected.finally(queue) {
+                finallyQueueLabel = dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL)
+              }
+            ]
+
+            futureResolved.resolve()
+            futureRejected.reject(nil)
+
+            return futures
+          }
+
+          expect(futureResolved.state) == FutureState.Resolved
+          expect(futureRejected.state) == FutureState.Rejected
+          expect(resolveQueueLabel) == dispatch_queue_get_label(queue)
+          expect(rejectQueueLabel) == dispatch_queue_get_label(queue)
+        }
       }
-      
+
       it("calls block in FIFO order") {
         var order: [Int] = []
         
         let future = Future<Void>()
-        
-        for i in (0...2) {
-          future.then {
-            order.append(i)
+
+        futures_wait {
+          let futures = (0...2).map { x in
+            future.then {
+              order.append(x)
+            }
           }
+
+          future.resolve()
+
+          return futures
         }
-        
-        future.resolve()
-        
-        // Wait for async call dispatched on main queue
-        waitUntil { done in done() }
-        
+
         expect(order) == [0, 1, 2]
       }
       
       it("can chain futures") {
         var results: [Int] = []
         let future = Future<Int>()
-        
-        future.then { result -> Int in
-          results.append(result)
-          return 2
-          //return Future<Int>.resolve(2)
-        }.then { result in
-          results.append(result)
+
+        futures_wait {
+          let futures = [
+            future.then { result -> Int in
+              results.append(result)
+              return 2
+            }.then { result in
+              results.append(result)
+            }.wrap()
+          ]
+
+          future.resolve(1)
+
+          return futures
         }
-        
-        future.resolve(1)
-        
-        // Wait for async call dispatched on main queue
-        CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1, false)
-        
+
         expect(results) == [1, 2]
       }
       
       context("when a future fails") {
-        it("it rejects up to the parent") {          
-          let future = Future<Int>()
-          
+        it("it rejects up to the parent") {
           var results: [Int] = []
-          
-          future.then { x -> Future<Int> in
-            results.append(x)
-            return Future<Void>.reject(nil)
-          }.then { _ in
-            results.append(21)
-          }.fail { _ in
-            results.append(42)
+          let future = Future<Int>()
+
+          futures_wait {
+            let futures = [
+              future.then { x -> Future<Int> in
+                results.append(x)
+                return Future<Void>.reject(nil)
+              }.then { _ in
+                results.append(21)
+              }.fail { _ in
+                results.append(42)
+              }.wrap()
+            ]
+
+            future.resolve(1)
+
+            return futures
           }
-          
-          future.resolve(1)
-          
-          // Wait for async call dispatched on main queue
-          CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1, false)
-          
+
           expect(results) == [1, 42]
         }
       }
     }
     
-    describe("Future#finally") {      
+    describe("Future#finally") {
       var future: Future<Void>!
       var thenCalled: Bool = false
       var failedCalled: Bool = false
@@ -150,17 +202,21 @@ class FutureSpec: QuickSpec {
       }
       
       it("properly calls finally when future is resolved") {
-        future.then {
-          thenCalled = true
-        }.fail { _ in
-          failedCalled = true
-        }.finally {
-          finallyCalled = true
+        futures_wait {
+          let futures = [
+            future.then {
+              thenCalled = true
+            }.fail { _ in
+              failedCalled = true
+            }.finally {
+              finallyCalled = true
+            }
+          ]
+
+          future.resolve()
+
+          return futures
         }
-        
-        future.resolve()
-        
-        waitUntil { done in done() }
 
         expect(thenCalled) == true
         expect(failedCalled) == false
@@ -168,17 +224,21 @@ class FutureSpec: QuickSpec {
       }
 
       it("properly calls finally when future is rejected") {
-        future.then {
-          thenCalled = true
-        }.fail { _ in
-          failedCalled = true
-        }.finally {
-          finallyCalled = true
+        futures_wait {
+          let futures = [
+            future.then {
+              thenCalled = true
+            }.fail { _ in
+              failedCalled = true
+            }.finally {
+              finallyCalled = true
+            }
+          ]
+
+          future.reject(nil)
+
+          return futures
         }
-        
-        future.reject(nil)
-        
-        waitUntil { done in done() }
 
         expect(thenCalled) == false
         expect(failedCalled) == true
@@ -190,16 +250,20 @@ class FutureSpec: QuickSpec {
     describe("Future#timeout") {
       it("rejects the future when timeout triggers") {
         var failedCalled = false
-        
         let future = Future<Void>()
-        future.fail { _ in
-          failedCalled = true
-        }.timeout(0.5)
-        
-        future.timeoutTimer?.fire()
-        
-        waitUntil { done in done() }
-        
+
+        futures_wait {
+          let futures = [
+            future.fail { _ in
+              failedCalled = true
+            }.timeout(0.5)
+          ]
+
+          future.timeoutTimer?.fire()
+
+          return futures
+        }
+
         expect(failedCalled) == true
       }
     }
@@ -210,17 +274,24 @@ class FutureSpec: QuickSpec {
           let future1 = Future<Int>()
           let future2 = Future<String>()
           let future3 = future1.merge(future2)
-          
-          future1.resolve(42)
-          future2.resolve("42")
-          
-          waitUntil { done in
-            future3.then { x, y in
-              expect(x) == 42
-              expect(y) == "42"
-              done()
-            }
+
+          var x: Int!
+          var y: String!
+
+          futures_wait {
+            future1.resolve(42)
+            future2.resolve("42")
+
+            return [
+              future3.then {
+                x = $0
+                y = $1
+              }.wrap()
+            ]
           }
+
+          expect(x) == 42
+          expect(y) == "42"
         }
       }
       
@@ -231,16 +302,20 @@ class FutureSpec: QuickSpec {
           let future3 = future1.merge(future2)
 
           let error = NSError(domain: "", code: 42, userInfo: nil)
-          
-          future1.resolve(42)
-          future2.reject(error)
-          
-          waitUntil { done in
-            future3.fail { error in
-              expect(error) == error
-              done()
-            }
+          var receivedError: NSError!
+
+          futures_wait {
+            future1.resolve(42)
+            future2.reject(error)
+
+            return [
+              future3.fail { error in
+                receivedError = error
+              }.wrap()
+            ]
           }
+
+          expect(receivedError) == error
         }
       }
     }
@@ -257,14 +332,15 @@ class FutureSpec: QuickSpec {
         
         var results: [Int]!
         let future = futures.all()
-        
-        waitUntil { done in
-          future.then {
-            results = $0
-            done()
-          }
+
+        futures_wait {
+          [
+            future.then {
+              results = $0
+            }
+          ]
         }
-        
+
         it ("resolves when all futures are resolved") {
           for future in futures {
             expect(future.state) == FutureState.Resolved
@@ -296,12 +372,10 @@ class FutureSpec: QuickSpec {
 
         let future = futures.all()
 
-        waitUntil { done in
-          future.fail { _ in
-            done()
-          }
+        futures_wait {
+          [future.wrap()]
         }
-        
+
         it ("rejects the promise") {
           expect(future.state) == FutureState.Rejected
         }
@@ -323,7 +397,12 @@ class FutureSpec: QuickSpec {
         }
         
         var result: Int!
-        
+        let future = futures.any()
+
+        futures_wait {
+          [future.wrap()]
+        }
+
         waitUntil { done in
           futures.any().then {
             result = $0
@@ -333,6 +412,7 @@ class FutureSpec: QuickSpec {
         
         it("resolves as soon as one future is resolved") {
           expect(futures.map { $0.state }).to(contain(FutureState.Resolved))
+          expect(future.state) == FutureState.Resolved
         }
         
         it("resolves with the first value resolved") {
@@ -370,64 +450,5 @@ class FutureSpec: QuickSpec {
       }
     }
     
-    describe("any") {
-      func f1(x: Int) -> Future<Int> {
-        return Future {
-          NSThread.sleepForTimeInterval(Double(x))
-          return x
-        }
-      }
-      
-      func f2(x: Int) -> Future<Int> {
-        return Promise { promise in
-          NSThread.sleepForTimeInterval(Double(x))
-          promise.resolve(x)
-        }
-      }
-
-      func f3(x: Int) -> Future<Int> {
-        return Future {
-          NSThread.sleepForTimeInterval(Double(x))
-          throw NSError(domain: "", code: 1, userInfo: nil)
-        }
-      }
-      
-      func f4(x: Int) -> Future<Int> {
-        return Promise { promise in
-          NSThread.sleepForTimeInterval(Double(x))
-          promise.reject()
-        }
-      }
-
-      it("works") {
-        waitUntil(timeout: 5) { done in
-          [f1(1), f2(2), f3(1)].any().then { value in
-            expect(value) == 1
-          }.fail { _ in
-            fail()
-          }.finally(done)
-        }
-      }
-
-      it("works2") {2
-        waitUntil(timeout: 5) { done in
-          [f2(1), f3(2)].any().then { value in
-            expect(value) == 1
-          }.fail { _ in
-            fail()
-          }.finally(done)
-        }
-      }
-
-      it("works3") {
-        waitUntil(timeout: 5) { done in
-          [f3(1), f4(2)].any().then { value in
-            fail()
-          }.fail { error in
-            expect(error).to(beNil())
-          }.finally(done)
-        }
-      }
-    }
   }
 }
