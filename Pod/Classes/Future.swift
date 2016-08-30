@@ -281,14 +281,14 @@ public extension Future {
 
   /**
    Add a fonction to fonction `fail` chain, with a custom ErrorType
-   
+
    Parameter f: The fonction to execute
-   
+
    Returns: self
-   
+
    Important: `f` is garanteed to be executed on main queue
    */
-  public func fail<E: ErrorType>(f: E? -> Void) -> Future<A> {
+  public func fail<E: ErrorType>(f: E -> Void) -> Future<A> {
     return self.fail(dispatch_get_main_queue(), f: f)
   }
 
@@ -300,9 +300,11 @@ public extension Future {
 
    Returns: self
    */
-  public func fail<E: ErrorType>(queue: dispatch_queue_t, f: E? -> Void) -> Future<A> {
+  public func fail<E: ErrorType>(queue: dispatch_queue_t, f: E -> Void) -> Future<A> {
     appendFail(queue) {
-      f($0 as? E)
+      if let error = $0 as? E {
+        f(error)
+      }
     }
     return self
   }
