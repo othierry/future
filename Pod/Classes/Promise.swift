@@ -8,7 +8,7 @@
 
 import Foundation
 
-public class Promise<A>: Future<A> {
+open class Promise<A>: Future<A> {
   
   /**
    Designated static initializer for async futures.
@@ -21,7 +21,7 @@ public class Promise<A>: Future<A> {
    
    Returns: The created promise object
    */
-  public required init(_ f: Promise<A> -> Void) {
+  public required init(_ f: @escaping (Promise<A>) -> Void) {
     super.init()
 
     // If we are already running on future's queue, they just asynchronously
@@ -30,7 +30,7 @@ public class Promise<A>: Future<A> {
     if self.isFutureQueue {
       f(self)
     } else {
-      dispatch_async(futureQueueConcurrent) {
+      futureQueueConcurrent.async {
         f(self)
       }
     }

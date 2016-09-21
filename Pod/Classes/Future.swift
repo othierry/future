@@ -8,9 +8,37 @@
 
 import Foundation
 
-let futureQueueConcurrent = dispatch_queue_create(
-  "com.future.queue:concurrent",
-  DISPATCH_QUEUE_CONCURRENT)
+extension DispatchQueue {
+
+  //replacement for dispatch_once(&token)
+	private static var _onceTracker = [String]()
+  
+  /**
+   Executes a block of code, associated with a unique token, only once.  The code is thread safe and will
+   only execute the code once even in the presence of multithreaded calls.
+   
+   - parameter token: A unique reverse DNS style name such as com.vectorform.<name> or a GUID
+   - parameter block: Block to execute once
+   */
+  public class func once(token: String, block:@noescape(Void)->Void) {
+    objc_sync_enter(self); defer { objc_sync_exit(self) }
+    
+    if _onceTracker.contains(token) {
+      return
+    }
+    _onceTracker.append(token)
+    block()
+  }
+  
+  // replacement for MACRO CURRENT_LABEL
+  class var currentLabel: String {
+    return String(validatingUTF8: __dispatch_queue_get_label(nil))!
+		}
+}
+
+let futureQueueConcurrent = DispatchQueue(
+  label: "com.future.queue:concurrent",
+  attributes: DispatchQueue.Attributes.concurrent)
 
 /**
  States a future can go trought
@@ -23,49 +51,50 @@ let futureQueueConcurrent = dispatch_queue_create(
  resolve/reject 2 times, an exception will be raised.
  */
 public enum FutureState {
-  case Pending, Resolved, Rejected
+  case pending, resolved, rejected
 }
 
 public enum FutureErrorCode: Int {
-  case Timeout = 0
+  case timeout = 0
 }
 
-public class Future<A>: FutureType {
+open class Future<A>: FutureType {
   public typealias Value = A
   
-  public private(set) var group: dispatch_group_t
+  open fileprivate(set) var group: DispatchGroup
   
   /// The resolved value `A`
-  public var value: A!
+  open var value: A!
   
   /// The error used when the future was rejected
-  public var error: ErrorType?
+  open var error: Error?
   
   /// Timeout
-  public var timeoutTimer: NSTimer?
+  open var timeoutTimer: Timer?
   
   /// The current state of the future
-  public var state: FutureState = .Pending
+  open var state: FutureState = .pending
   
   /// Optionnal. An identifier assigned to the future. This is useful to debug
   /// multiple, concurrent futures.
-  public var identifier: String?
+  open var identifier: String?
   
   /// Fonction chaining to keep track of functions to invoke when
   /// rejecting or resolving a future in FIFO mode.
   ///
   /// Important: When resolved, the fuctture will discard `fail` chain fonctions.
   /// When rejected, the future will discard `then` chain fonctions
-  private var chain: (then: [A -> Void], fail: [ErrorType? -> Void], finally: [Void -> Void]) = ([], [], [])
+  fileprivate var chain: (then: [(A) -> Void], fail: [(Error?) -> Void], finally: [(Void) -> Void]) = ([], [], [])
 
   /// True if the current running queue is the future queue, false otherwise
   internal var isFutureQueue: Bool {
-    return dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL) == dispatch_queue_get_label(futureQueueConcurrent)
+    
+    return DispatchQueue.currentLabel  == futureQueueConcurrent.label
   }
 
   public init() {
-    self.group = dispatch_group_create()
-    dispatch_group_enter(self.group)
+    self.group = DispatchGroup()
+    self.group.enter()
   }
 
   /**
@@ -77,7 +106,7 @@ public class Future<A>: FutureType {
    
    Returns: The created future object
    */
-  public convenience init(_ f: Void throws -> A) {
+  public convenience init(_ f: @escaping (Void) throws -> A) {
     self.init()
 
     let run = {
@@ -96,7 +125,7 @@ public class Future<A>: FutureType {
     if self.isFutureQueue {
       run()
     } else {
-      dispatch_async(futureQueueConcurrent, run)
+      futureQueueConcurrent.async(execute: run)
     }
   }
 
@@ -114,7 +143,7 @@ public class Future<A>: FutureType {
    
    Returns: The future
    */
-  public static func resolve<A>(value: A) -> Future<A> {
+  open static func resolve<A>(_ value: A) -> Future<A> {
     let future = Future<A>()
     future.resolve(value)
     return future
@@ -129,18 +158,18 @@ public class Future<A>: FutureType {
    
    Returns: The future
    */
-  public static func reject<A>(error: ErrorType?) -> Future<A> {
+  open static func reject<A>(_ error: Error?) -> Future<A> {
     let future = Future<A>()
     future.reject(error)
     return future
   }
   
   @objc
-  private func performTimeout() {
+  fileprivate func performTimeout() {
     self.reject(
       NSError(
         domain: "com.future",
-        code: FutureErrorCode.Timeout.rawValue,
+        code: FutureErrorCode.timeout.rawValue,
         userInfo: nil))
   }
 }
@@ -156,8 +185,8 @@ public extension Future {
    
    Important: `f` is garanteed to be executed on main queue
    */
-  public func then(f: A -> Void) -> Future<A> {
-    return then(dispatch_get_main_queue(), f: f)
+  public func then(_ f: @escaping (A) -> Void) -> Future<A> {
+    return then(queue: DispatchQueue.main, f: f)
   }
 
   /**
@@ -168,7 +197,7 @@ public extension Future {
 
    Returns: self
    */
-  public func then(queue: dispatch_queue_t, f: A -> Void) -> Future<A> {
+  public func then(queue queue: DispatchQueue, f: @escaping (A) -> Void) -> Future<A> {
     appendThen(queue) { value in f(value) }
     return self
   }
@@ -184,8 +213,8 @@ public extension Future {
    
    Important: `f` is garanteed to be executed on main queue
    */
-  public func then<B>(f: A -> B) -> Future<B> {
-    return self.then(dispatch_get_main_queue(), f: f)
+  public func then<B>(_ f: @escaping (A) -> B) -> Future<B> {
+    return self.then(queue: DispatchQueue.main, f: f)
   }
 
   /**
@@ -198,7 +227,7 @@ public extension Future {
 
    Returns: the future
    */
-  public func then<B>(queue: dispatch_queue_t, f: A -> B) -> Future<B> {
+  public func then<B>(queue queue: DispatchQueue, f: @escaping (A) -> B) -> Future<B> {
     let future = Future<B>()
 
     appendThen(queue) { value in
@@ -222,8 +251,8 @@ public extension Future {
    
    Important: `f` is garanteed to be executed on main queue
    */
-  public func then<B>(f: A -> Future<B>) -> Future<B> {
-    return self.then(dispatch_get_main_queue(), f: f)
+  public func then<B>(_ f: @escaping (A) -> Future<B>) -> Future<B> {
+    return self.then(queue: DispatchQueue.main, f: f)
   }
 
   /**
@@ -235,13 +264,13 @@ public extension Future {
 
    Returns: the future
    */
-  public func then<B>(queue: dispatch_queue_t, f: A -> Future<B>) -> Future<B> {
+  public func then<B>(queue queue: DispatchQueue, f: @escaping (A) -> Future<B>) -> Future<B> {
     let future = Future<B>()
 
     appendThen(queue) { value in
       f(value)
-        .then(queue) { future.resolve($0) }
-        .fail(queue) { future.reject($0) }
+        .then(queue:queue) { future.resolve($0) }
+        .fail(queue:queue) { future.reject($0) }
     }
 
     appendFail(queue) { error in
@@ -260,8 +289,8 @@ public extension Future {
 
    Important: `f` is garanteed to be executed on main queue
    */
-  public func fail(f: NSError? -> Void) -> Future<A> {
-    return self.fail(dispatch_get_main_queue(), f: f)
+  public func fail(_ f: @escaping (NSError?) -> Void) -> Future<A> {
+    return self.fail(queue: DispatchQueue.main, f: f)
   }
 
   /**
@@ -272,7 +301,7 @@ public extension Future {
 
    Returns: self
    */
-  public func fail(queue: dispatch_queue_t, f: NSError? -> Void) -> Future<A> {
+  public func fail(queue queue: DispatchQueue, f: @escaping (NSError?) -> Void) -> Future<A> {
     appendFail(queue) {
       f($0 as? NSError)
     }
@@ -288,8 +317,8 @@ public extension Future {
 
    Important: `f` is garanteed to be executed on main queue
    */
-  public func fail<E: ErrorType>(f: E -> Void) -> Future<A> {
-    return self.fail(dispatch_get_main_queue(), f: f)
+  public func fail<E: Error>(_ f: @escaping (E) -> Void) -> Future<A> {
+    return self.fail(DispatchQueue.main, f: f)
   }
 
   /**
@@ -300,7 +329,7 @@ public extension Future {
 
    Returns: self
    */
-  public func fail<E: ErrorType>(queue: dispatch_queue_t, f: E -> Void) -> Future<A> {
+  public func fail<E: Error>(_ queue: DispatchQueue, f: @escaping (E) -> Void) -> Future<A> {
     appendFail(queue) {
       if let error = $0 as? E {
         f(error)
@@ -309,7 +338,7 @@ public extension Future {
     return self
   }
 
-  public func timeout(seconds: NSTimeInterval) -> Future<A> {
+  public func timeout(_ seconds: TimeInterval) -> Future<A> {
     // Invalidate current timer if any
     self.timeoutTimer?.invalidate()
     self.timeoutTimer = nil
@@ -317,8 +346,8 @@ public extension Future {
     // Consider 0 as no timeout
     guard seconds > 0 else { return self }
     
-    self.timeoutTimer = NSTimer.scheduledTimerWithTimeInterval(
-      seconds,
+    self.timeoutTimer = Timer.scheduledTimer(
+      timeInterval: seconds,
       target: self,
       selector: #selector(performTimeout),
       userInfo: nil,
@@ -336,8 +365,8 @@ public extension Future {
 
    Important: `f` is garanteed to be executed on main queue
    */
-  public func finally(f: Void -> Void) -> Future<A> {
-    return self.finally(dispatch_get_main_queue(), f: f)
+  public func finally(_ f: @escaping (Void) -> Void) -> Future<A> {
+    return self.finally(DispatchQueue.main, f: f)
   }
 
   /**
@@ -348,7 +377,7 @@ public extension Future {
 
    Returns: self
    */
-  public func finally(queue: dispatch_queue_t, f: Void -> Void) -> Future<A> {
+  public func finally(_ queue: DispatchQueue, f: @escaping (Void) -> Void) -> Future<A> {
     appendFinally(queue, f: f)
     return self
   }
@@ -361,18 +390,18 @@ public extension Future {
    that can pop when multiple threads access the
    same future instance
    */
-  private func appendThen(queue: dispatch_queue_t, f: A -> Void) {
+  fileprivate func appendThen(_ queue: DispatchQueue, f: @escaping (A) -> Void) {
     // Avoid concurrent access, synchronise threads
     objc_sync_enter(self)
     
     self.chain.then.append { value in
-      dispatch_async(queue) {
+      queue.async {
         f(value)
       }
     }
     
     // If future is already resolved, invoke functions chain now
-    if state == .Resolved {
+    if state == .resolved {
       resolveAll()
     }
     
@@ -388,18 +417,18 @@ public extension Future {
    that can pop when multiple threads access the
    same future instance
    */
-  private func appendFail(queue: dispatch_queue_t, f: ErrorType? -> Void) {
+  fileprivate func appendFail(_ queue: DispatchQueue, f: @escaping (Error?) -> Void) {
     // Avoid concurrent access, synchronise threads
     objc_sync_enter(self)
     
     self.chain.fail.append { error in
-      dispatch_async(queue) {
+      queue.async {
         f(error)
       }
     }
     
     // If future is already rejected, invoke functions chain now
-    if state == .Rejected {
+    if state == .rejected {
       rejectAll()
     }
     
@@ -416,16 +445,16 @@ public extension Future {
    that can pop when multiple threads access the
    same future instance
    */
-  private func appendFinally(queue: dispatch_queue_t, f: Void -> Void) {
+  fileprivate func appendFinally(_ queue: DispatchQueue, f: @escaping (Void) -> Void) {
     // Avoid concurrent access, synchronise threads
     objc_sync_enter(self)
     
     self.chain.finally.append {
-      dispatch_async(queue, f)
+      queue.async(execute: f)
     }
     
     // If future is already resolved, invoke functions chain now
-    if state != .Pending {
+    if state != .pending {
       finalizeAll()
     }
     
@@ -447,8 +476,8 @@ public extension Future {
    that can pop when multiple threads access the
    same future instance
    */
-  public func resolve(value: A) {
-    guard state == .Pending else {
+  public func resolve(_ value: A) {
+    guard state == .pending else {
       return
     }
     
@@ -463,14 +492,14 @@ public extension Future {
     self.value = value
 
     // Assign state as .Resolved
-    self.state = .Resolved
+    self.state = .resolved
 
     // Invoke all success fonctions in fonctions chain
     resolveAll()
     finalizeAll()
 
     // Leave group not future is resolved
-    dispatch_group_leave(self.group)
+    self.group.leave()
     
     // Release lock
     objc_sync_exit(self)
@@ -487,8 +516,8 @@ public extension Future {
    that can pop when multiple threads access the
    same future instance
    */
-  public func reject(error: ErrorType? = nil) {
-    guard state == .Pending else {
+  public func reject(_ error: Error? = nil) {
+    guard state == .pending else {
       return
     }
     
@@ -499,13 +528,13 @@ public extension Future {
     self.error = error
 
     // Assign state as .Rejected
-    self.state = .Rejected
+    self.state = .rejected
 
     // Invoke failure functions in fonctions chain
     rejectAll()
     finalizeAll()
 
-    dispatch_group_leave(self.group)
+    self.group.leave()
     
     // Release lock
     objc_sync_exit(self)
@@ -515,7 +544,7 @@ public extension Future {
    Invoke all function in `then` function chain
    and empty chain after complete
    */
-  private func resolveAll() {
+  fileprivate func resolveAll() {
     for f in self.chain.then {
       f(self.value)
     }
@@ -527,7 +556,7 @@ public extension Future {
    Invoke all function in `fail` function chain
    and empty chain after complete
    */
-  private func rejectAll() {
+  fileprivate func rejectAll() {
     for f in self.chain.fail {
       f(self.error)
     }
@@ -535,7 +564,7 @@ public extension Future {
     self.chain.fail = []
   }
   
-  private func finalizeAll() {
+  fileprivate func finalizeAll() {
     for f in self.chain.finally {
       f()
     }
@@ -565,10 +594,10 @@ extension Future {
    with a concrete type but the caller of the future expect
    another type your value type can be downcasted to.
    */
-  public func wrap<B>(type: B.Type) -> Future<B> {
+  public func wrap<B>(_ type: B.Type) -> Future<B> {
     /// TODO: Check error when using as! instead of `unsafeBitCast`
     return self.then { x -> B in
-      unsafeBitCast(x, B.self)
+      unsafeBitCast(x, to: B.self)
     }
   }
 
@@ -581,7 +610,7 @@ extension Future {
    Parameter future: the future object
    Returns: A new future
    */
-  public func merge<B>(future: Future<B>) -> Future<(A, B)> {
+  public func merge<B>(_ future: Future<B>) -> Future<(A, B)> {
     return self.then { x -> Future<(A, B)> in
       future.then { y in
         (x, y)
@@ -603,7 +632,7 @@ extension Future {
   }
 }
 
-extension CollectionType where Generator.Element: FutureType {
+extension Collection where Iterator.Element: FutureType {
 
   /**
    Wait until all futures complete and resolve by mapping the values
@@ -615,25 +644,25 @@ extension CollectionType where Generator.Element: FutureType {
    
    Returns: future object
    */
-  public func all() -> Future<[Generator.Element.Value]> {
+  public func all() -> Future<[Iterator.Element.Value]> {
     guard
-      let futures = self as? [Future<Generator.Element.Value>]
-      where self.count > 0
-      else { return Future<[Generator.Element.Value]>.resolve([]) }
+      let futures = self as? [Future<Iterator.Element.Value>]
+      , self.count > 0
+      else { return Future<[Iterator.Element.Value]>.resolve([]) }
 
-    var token: dispatch_once_t = 0
-    return Promise<[Generator.Element.Value]> { promise in
+    var token: String = "0"
+    return Promise<[Iterator.Element.Value]> { promise in
       futures.forEach {
         $0.then { _ in
-          let pendings = futures.filter { $0.state == .Pending }
+          let pendings = futures.filter { $0.state == .pending }
           if pendings.isEmpty {
-            dispatch_once(&token) {
+            DispatchQueue.once(token: token) {
               let values = futures.flatMap { $0.value }
               promise.resolve(values)
             }
           }
         }.fail { error in
-          dispatch_once(&token) {
+           DispatchQueue.once(token: token){
             promise.reject(error)
           }
         }
@@ -649,16 +678,16 @@ extension CollectionType where Generator.Element: FutureType {
    
    Returns: future object
    */
-  public func any() -> Future<Generator.Element.Value> {
+  public func any() -> Future<Iterator.Element.Value> {
     guard !isEmpty else {
       fatalError("Future.any called with empty futures array.")
     }
     
     return Promise { promise in
       self.forEach {
-        if let future = $0 as? Future<Generator.Element.Value> {
+        if let future = $0 as? Future<Iterator.Element.Value> {
           future.then { x in
-            if promise.state != .Resolved {
+            if promise.state != .resolved {
               promise.resolve(x)
             }
           }
@@ -669,7 +698,7 @@ extension CollectionType where Generator.Element: FutureType {
       let _ = try? await <- self
 
       // No futures have resolved
-      if promise.state != .Resolved {
+      if promise.state != .resolved {
         promise.reject(nil)
       }
     }
@@ -686,10 +715,10 @@ extension CollectionType where Generator.Element: FutureType {
    
    Returns: future object
    */
-  public func reduce<B>(value: B, combine: (B, Generator.Element.Value) throws -> B) -> Future<B> {
+  public func reduce<B>(_ value: B, combine: @escaping (B, Iterator.Element.Value) throws -> B) -> Future<B> {
     return Future {
       let values = try await <- self.all()
-      return try values.reduce(value, combine: combine)
+      return try values.reduce(value, combine)
     }
   }
 
@@ -704,17 +733,15 @@ extension CollectionType where Generator.Element: FutureType {
  
  Returns: the value the future resolved to
  */
-public func await<A where A: FutureType>(future: A) throws -> A.Value {
-  dispatch_group_wait(
-    future.group,
-    DISPATCH_TIME_FOREVER)
+public func await<A>(_ future: A) throws -> A.Value where A: FutureType {
+  future.group.wait(timeout: DispatchTime.distantFuture)
   
   switch future.state {
-  case .Resolved:
+  case .resolved:
     return future.value
-  case .Rejected:
+  case .rejected:
     throw future.error ?? NSError(
-      domain: NSGenericException,
+      domain: NSExceptionName.genericException.rawValue,
       code: 42,
       userInfo: nil)
   default:
@@ -723,6 +750,6 @@ public func await<A where A: FutureType>(future: A) throws -> A.Value {
 }
 
 
-private func _await<A where A: FutureType>(future: A) throws -> A.Value {
+private func _await<A>(_ future: A) throws -> A.Value where A: FutureType {
   return try await(future)
 }

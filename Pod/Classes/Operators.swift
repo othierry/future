@@ -8,25 +8,30 @@
 
 import Foundation
 
-infix operator <- { associativity right }
+precedencegroup FuturePrecedence {
+  associativity: right
+  lowerThan: CastingPrecedence
+}
+
+infix operator <- : FuturePrecedence//{ associativity: right }
 
 public func <-
-  <A where A: FutureType>
-  (f: A throws -> A.Value, x: A) rethrows -> A.Value
+  <A>
+  (f: (A) throws -> A.Value, x: A) rethrows -> A.Value where A: FutureType
 {
   return try f(x)
 }
 
 public func <-
-  <A, B where A: FutureType, B: SequenceType, B.Generator.Element == A>
-  (f: A throws -> A.Value, xs: B) rethrows -> [A.Value]
+  <A, B>
+  (f: (A) throws -> A.Value, xs: B) rethrows -> [A.Value] where A: FutureType, B: Sequence, B.Iterator.Element == A
 {
   return try xs.map(f)
 }
 
 public func <-
-  <A, B where A: FutureType>
-  (f: A.Value -> B, x: A) throws -> B
+  <A, B>
+  (f: (A.Value) -> B, x: A) throws -> B where A: FutureType
 {
   return try f(await <- x)
 }

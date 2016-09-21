@@ -11,11 +11,11 @@ import Foundation
 public protocol FutureType {
   associatedtype Value
   
-  var group: dispatch_group_t { get }
+  var group: DispatchGroup { get }
   var state: FutureState { get }
   var value: Value! { get }
-  var error: ErrorType? { get }
+  var error: Error? { get }
   
-  func resolve(value: Value)
-  func reject(error: ErrorType?)
+  func resolve(_ value: Value)
+  func reject(_ error: Error?)
 }
