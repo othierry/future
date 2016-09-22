@@ -13,7 +13,7 @@ precedencegroup FuturePrecedence {
   lowerThan: CastingPrecedence
 }
 
-infix operator <- : FuturePrecedence//{ associativity: right }
+infix operator <- { associativity: right precedence 200}
 
 public func <-
   <A>
