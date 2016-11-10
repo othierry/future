@@ -9,7 +9,7 @@
 Pod::Spec.new do |s|
   s.name             = "FutureSwift"
   s.module_name      = "Future"
-  s.version          = "1.1.9"
+  s.version          = "1.2.0"
   s.summary          = "Light, Sexy and type safe Future & Promise implementation in Swift."
   s.homepage         = "https://github.com/othierry/future"
   s.license          = 'MIT'
