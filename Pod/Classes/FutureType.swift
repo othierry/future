@@ -9,13 +9,28 @@
 import Foundation
 
 public protocol FutureType {
-  associatedtype Value
+  associatedtype A
   
-  var group: dispatch_group_t { get }
-  var state: FutureState { get }
-  var value: Value! { get }
-  var error: ErrorType? { get }
-  
-  func resolve(value: Value)
-  func reject(error: ErrorType?)
+  var state: FutureState<A> { get }
+  var isPending: Bool { get }
+
+  @discardableResult
+  func then(_ f: @escaping (A) -> Void) -> Future<A>
+  @discardableResult
+  func then<B>(_ f: @escaping (A) -> B) -> Future<B>
+  @discardableResult
+  func then<B>(_ f: @escaping (A) -> Future<B>) -> Future<B>
+
+  @discardableResult
+  func fail(_ f: @escaping (NSError?) -> Void) -> Future<A>
+  @discardableResult
+  func fail<E: Error>(_ f: @escaping (E) -> Void) -> Future<A>
+
+  @discardableResult
+  func finally(_ f: @escaping (Void) -> Void) -> Future<A>
+  @discardableResult
+  func finally(on queue: DispatchQueue, f: @escaping (Void) -> Void) -> Future<A>
+
+  func resolve(_ value: A)
+  func reject(_ error: Error?)
 }
