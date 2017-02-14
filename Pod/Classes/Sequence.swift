@@ -25,14 +25,21 @@ extension Sequence where Iterator.Element: FutureType {
 
   public func all() -> Future<[Iterator.Element.A]> {
     return Promise { promise -> Void in
-      var results: [Iterator.Element.A] = []
       self.forEach { future in
         future
-          .then {
-            results.append($0)
+          .then { _ in
             // Guard all future completed before resolving
             guard self.filter({ $0.state.isPending }).isEmpty else { return }
-            promise.resolve(results)
+
+            promise.resolve(
+              self.flatMap {
+                if case let .resolved(value) = $0.state {
+                  return value
+                } else {
+                  return nil
+                }
+              }
+            )
           }
           .fail {
             promise.reject($0)
