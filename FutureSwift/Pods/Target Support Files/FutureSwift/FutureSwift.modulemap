@@ -1,4 +1,4 @@
-framework module FutureSwift {
+framework module Future {
   umbrella header "FutureSwift-umbrella.h"
 
   export *
