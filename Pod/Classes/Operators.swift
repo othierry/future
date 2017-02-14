@@ -8,18 +8,30 @@
 
 import Foundation
 
-infix operator <- : DefaultPrecedence
+precedencegroup FutureBindingPrecedence {
+  associativity: left
+  higherThan: MultiplicationPrecedence
+}
 
-public func <-
+infix operator => : FutureBindingPrecedence
+
+public func =>
   <A>
-  (f: (Future<A>) throws -> A, x: Future<A>) rethrows -> A
+  (x: Future<A>, f: (Future<A>) throws -> A) rethrows -> A
 {
   return try f(x)
 }
 
-public func <-
+public func =>
   <A>
-  (f: (Future<A>) throws -> A, xs: [Future<A>]) rethrows -> [A]
+  (xs: [Future<A>], f: (Future<A>) throws -> A) rethrows -> [A]
 {
   return try xs.map(f)
+}
+
+public func =>
+  <A, B>
+  (x: Future<A>, f: (A) throws -> B) throws -> B
+{
+  return try f(x => await)
 }

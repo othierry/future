@@ -12,7 +12,6 @@ public protocol FutureType {
   associatedtype A
   
   var state: FutureState<A> { get }
-  var isPending: Bool { get }
 
   @discardableResult
   func then(_ f: @escaping (A) -> Void) -> Future<A>

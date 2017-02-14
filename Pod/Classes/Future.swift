@@ -26,6 +26,31 @@ public enum FutureState<A> {
   case pending
   case resolved(A!)
   case rejected(Error?)
+
+  public var isPending: Bool {
+    if case .pending = self {
+      return true
+    } else {
+      return false
+    }
+  }
+
+  public var isResolved: Bool {
+    if case .resolved(_) = self {
+      return true
+    } else {
+      return false
+    }
+  }
+
+  public var isRejected: Bool {
+    if case .rejected = self {
+      return true
+    } else {
+      return false
+    }
+  }
+
 }
 
 fileprivate enum FutureCallback<A> {
@@ -46,17 +71,6 @@ public class Future<A>: FutureType {
     }
   }
 
-  /// Returns `true` if the future is running (state != .pending)
-  open var isPending: Bool {
-    get {
-      if case .pending = self.state {
-        return true
-      } else {
-        return false
-      }
-    }
-  }
-
   /// Fonction chaining to keep track of closures to invoke when
   /// rejecting or resolving a future in FIFO order.
   ///
@@ -72,6 +86,8 @@ public class Future<A>: FutureType {
     }
   }
 
+  public init() {}
+
   /**
    Designated static initializer for sync futures.
    The method executes the block asynchronously in background queue
@@ -80,6 +96,7 @@ public class Future<A>: FutureType {
    
    Returns: The created future object
    */
+  @discardableResult
   public convenience init(_ f: @escaping (Void) throws -> A) {
     self.init()
 
@@ -90,27 +107,6 @@ public class Future<A>: FutureType {
         } catch let error {
           self.reject(error)
         }
-      }
-    }
-  }
-
-  /**
-   Designated static initializer for async futures.
-   The method executes the block asynchronously in background queue
-   (Future.futureQueueConcurrent). It provide a promise object to
-   resolve or reject. This method is useful when the body
-   of the async block also calls async code.
-
-   Parameter: f: The block to execute with the future as parameter.
-
-   Returns: The created promise object
-   */
-  public convenience init(_ f: @escaping (Future<A>) -> Void) {
-    self.init()
-
-    queue.async {
-      autoreleasepool {
-        f(self)
       }
     }
   }
@@ -156,7 +152,7 @@ public class Future<A>: FutureType {
    same future instance
    */
   public func resolve(_ value: A) {
-    guard self.isPending else { return }
+    guard self.state.isPending else { return }
     self.state = .resolved(value)
   }
 
@@ -171,8 +167,8 @@ public class Future<A>: FutureType {
    that can pop when multiple threads access the
    same future instance
    */
-  @objc public func reject(_ error: Error? = nil) {
-    guard self.isPending else { return }
+  public func reject(_ error: Error? = nil) {
+    guard self.state.isPending else { return }
     self.state = .rejected(error)
   }
 
@@ -376,6 +372,12 @@ public extension Future {
     return self
   }
 
+  /**
+   Registers a callback function to the callback function chain.
+
+   Parameter queue: The queue on which the block must execute. default is dispatch_get_main_queue()
+   Parameter callback: The callback function wrapped in a FutureCallback<A> type
+   */
   fileprivate func register(on queue: DispatchQueue, _ callback: FutureCallback<A>) {
     // Avoid concurrent access, synchronise threads
     objc_sync_enter(self)
@@ -411,7 +413,7 @@ public extension Future {
       }
 
       // If future is already resolved/rejected, invoke functions chain now
-      if !self.isPending {
+      if !self.state.isPending {
         finalizeAll()
       }
     }
@@ -471,6 +473,10 @@ public extension Future {
     self.chain.fail = []
   }
   
+  /**
+   Invoke all function in `finally` function chain
+   and empty chain after complete
+   */
   fileprivate func finalizeAll() {
     for f in self.chain.finally {
       f()
@@ -518,18 +524,30 @@ extension Future {
    Returns: A new future
    */
   public func merge<B>(_ future: Future<B>) -> Future<(A, B)> {
-    return self.then { x -> Future<(A, B)> in
-      future.then { y in
-        (x, y)
+    return self.then { a -> Future<(A, B)> in
+      future.then { b in
+        (a, b)
       }
     }
   }
 
   public func merge<B, C>(_ future1: Future<B>, _ future2: Future<C>) -> Future<(A, B, C)> {
-    return self.then { x in
-      future1.then { y in
-        future2.then { z -> (A, B, C) in
-          return (x, y, z)
+    return self.then { a in
+      future1.then { b in
+        future2.then { c in
+          (a, b, c)
+        }
+      }
+    }
+  }
+
+  public func merge<B, C, D>(_ future1: Future<B>, _ future2: Future<C>, _ future3: Future<D>) -> Future<(A, B, C, D)> {
+    return self.then { a in
+      future1.then { b in
+        future2.then { c in
+          future3.then { d in
+            (a, b, c, d)
+          }
         }
       }
     }
@@ -564,7 +582,7 @@ extension Future {
     }
   }
 
-  public func timeout(after seconds: Int) -> Self {
+  public func timeout(after seconds: Double) -> Self {
     // Consider 0 as no timeout
     guard seconds > 0 else {
       self.timeoutDispatchSource = nil
@@ -572,7 +590,7 @@ extension Future {
     }
 
     let timeoutDispatchSource = DispatchSource.makeTimerSource(flags: .strict, queue: queue)
-    timeoutDispatchSource.scheduleOneshot(deadline: .now(), leeway: .seconds(seconds))
+    timeoutDispatchSource.scheduleOneshot(deadline: .now(), leeway: .milliseconds(Int(seconds * 1000)))
     timeoutDispatchSource.setEventHandler { [weak self] in self?.reject() }
     timeoutDispatchSource.resume()
 
