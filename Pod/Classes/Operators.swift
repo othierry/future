@@ -16,22 +16,23 @@ precedencegroup FutureBindingPrecedence {
 infix operator => : FutureBindingPrecedence
 
 public func =>
-  <A>
-  (x: Future<A>, f: (Future<A>) throws -> A) rethrows -> A
+  <A, B>
+  (x: Future<A>, f: @escaping (A) -> Future<B>) -> Future<B>
 {
-  return try f(x)
-}
-
-public func =>
-  <A>
-  (xs: [Future<A>], f: (Future<A>) throws -> A) rethrows -> [A]
-{
-  return try xs.map(f)
+  return x.then(f)
 }
 
 public func =>
   <A, B>
-  (x: Future<A>, f: (A) throws -> B) throws -> B
+  (x: Future<A>, f: @escaping (A) -> B) -> Future<B>
 {
-  return try f(x => await)
+  return x.then(f)
 }
+
+public func =>
+  <A, B, C>
+  (f1: @escaping (A) -> Future<B>, f2: @escaping (B) -> Future<C>) -> (A) -> Future<C>
+{
+  return { x in f1(x).then(f2) }
+}
+

@@ -434,19 +434,28 @@ class FutureSpec: QuickSpec {
       
       func login(_ u: String, p: String) -> Future<[String: String]> {
         return Future {
-          try request([u: u, p: p]) => await
+          try await(
+            request([u: u, p: p])
+          )
         }
       }
       
       func values(_ user: [String: String]) -> Future<[String]> {
         return Future {
-          try request(user) => { Array<String>($0.values).sorted() }
+          try await(
+            request(user) => { Array<String>($0.values).sorted() }
+          )
         }
       }
       
       it("properly awaits and resolve values") {
-        let posts = try? login("foo", p: "bar") => values => await
-        expect(posts) == ["bar", "foo"]
+        Future {
+          let posts = try? await(
+            login("foo", p: "bar") => values
+          )
+
+          expect(posts) == ["bar", "foo"]
+        }
       }
     }
     
