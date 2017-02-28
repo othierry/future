@@ -58,7 +58,7 @@ func fetchUser(id: Int) -> Future<User> {
 - If you need to perform sync code within your block then use `Future`
 
 ```swift
-func fetchUser(id: Int) -> Future<Bool> {
+func computeSomething() -> Future<Bool> {
   return Future {
     for i in (0...10000000) {
       // Do something expansive...
@@ -69,16 +69,23 @@ func fetchUser(id: Int) -> Future<Bool> {
 }
 ```
 
-
-*Incoming*
-
-#### Simple future
-
-*Incoming*
-
 #### Chaining Futures
 
-*Incoming*
+Futures & Promises can also be chained.
+
+```Swift
+Future {
+  return 42
+}.then { x in
+  return "\(x) - Forty two"
+}.then { x -> Future<[String]> in
+  Future {
+    return [x]
+  }
+}.then { x in
+  print(x) // prints ["Forty two"]
+}
+```
 
 ### Consuming futures
 
@@ -98,11 +105,16 @@ The callback can be one of the following:
 
 You can call `fail(_:)` on a future by passing a closure that takes an `ErrorType` as parameter. When one of the future in the chain fails, this block will be called using the given error.
 
+##
+## Finally
+
+`finally(_:)` takes a closure that will execute after the future fulfils or fails.
+
 ### Await
 
-Await allows you to block the running thread while a future completes. It makes the use of multiple future a lot easier to read and understand.
+Await allows you to block the running thread while a future completes. Awaiting is not recommended as it is blocking the calling thread and can cause dead locks when using recursive awaits.
 
-**NOTE** Avoid to call `await(_:)` from the main thread. As explained in ###, `then(_:)` blocks are scheduled to be run on the main queue. If the main thread is waiting for the future to be completed and the future needs its `then(_:)` blocks to be called in order to complete the future chaining cascade, it will deadlock. `await(_:)` is designed to be called from any thread but the main thread.
+**NOTE** Do not call `await(_:)` from the main thread. `then(_:)` blocks are scheduled to be run on the main queue **by default**. If the main thread is waiting for the future to be completed and the future needs its `then(_:)` blocks to be called in order to complete the future chaining cascade, it will deadlock. `await(_:)` is designed to be called from any thread but the main thread.
 
 **Example:**
 
@@ -137,7 +149,7 @@ func doSomethingAsync() -> Future<Void> {
   }.then { _ -> Future<Void> in
     f3()
   }.then {
-    // Everthing's done!
+    // Everthing's done
   }.fail { error in
     // Something went bad
   }  
@@ -149,15 +161,15 @@ Using await
 ```swift
 func doSomethingAsync() -> Future<Void> {
   return Future {
-    try await <- f1()
-    try await <- f2()
-    try await <- f3()
+    try await(f1())
+    try await(f2())
+    try await(f3())
   }
 }
 ```
 
-Now let's define some other functions that have dependencies to each other.
-In the following example, `f2` needs the value resolved by `f1` to run, and `f3` need the value resolved by `f2`.
+Promises can depend on each other.
+Here, `f2` needs the value resolved by `f1` to run, and `f3` need the value resolved by `f2`.
 
 ```swift
 func f1() -> Future<Int> { ... }
@@ -175,41 +187,67 @@ f1().then { x -> Future<String> in
 }.fail { error in
   // Something went bad
 }
+
+// or
+
+f1().then(f2).then(f3).fail { error in
+  // Something went bad
+}
 ```
 
 Using `await(_:)` approach:
 
 ```
 Future {
-  let x = try await <- f1()
-  let y = try await <- f2(x)
-  let z = try await <- f3(y)
+  let x = try await(f1())
+  let y = try await(f2())
+  let z = try await(f3())
 
   return z
 }
 ```
 
-Or, if you want to be really sex:
+You can also use binding operators to chain futures.
 
 ```swift
 Future {
-  try await <- f3 <- f2 <- f1()
+  try f1() => f2 => f3 => await
+  // Equivalent to
+  try f1().then(f2).then(f3).await()
 }
+```
+
+You can compose futures using the same operator
+
+```swift
+let f4 = f1 => f2 => f3 // f4 :: (Void) -> Future<[String]>
 ```
 
 ### Operators
 
-*Incoming*
+`=>` operator can be used as syntactic sugar for composing futures as you are composing functions.
+
+Given
+```Swift
+func f1() -> Future<Int> { ... }
+func f2(x: Int) -> Future<String> { ... }
+func f3(x: String) -> Future<[String]> { ... }
+```
+
+```Swift
+let f4 = f1 => f2 => f3   // f4 :: Void -> Future<[String]>
+let f4 = f1() => f2 => f3 // f4 :: Future<[String]>
+```
 
 ### Control flow
 
 #### CollectionType extension
 
-This library provides an extension for `CollectionType` containing `FutureType` objects. `Future` conforms to `FutureType`.
+This library provides an extension for `Sequence` containing `FutureType` objects. `Future` conforms to `FutureType`.
 
 #### all
 
-`CollectionType#all()` method returns a new `Future`. The returned future will resolve when all the futures contained in `self` are resolved and will expose a list of the values returned by the futures. If one of the future fails, the returned future will directly fail with the same error.
+`Sequence#all()` method returns a new `Future`. The returned future will resolve when all the futures contained in `self` are resolved and will expose a list of the values returned by the futures. If one of the future fails, the returned future will directly fail with the same error.
 
 **Example**
 
@@ -223,7 +261,7 @@ futures.all().then { values in
 
 #### any
 
-`CollectionType#any()` method returns a new `Future`. The returned future will resolve as soon as one of the future contained in `self` is resolved and will expose the value. If all the futures fail, the returned future will also fail with a `nil` error.
+`Sequence#any()` method returns a new `Future`. The returned future will resolve as soon as one of the future contained in `self` is resolved and will expose the value. If all the futures fail, the returned future will also fail with a `nil` error.
 
 **Example**
 
@@ -237,7 +275,7 @@ futures.any().then { value in
 
 #### reduce
 
-`CollectionType#reduce()` method is the same as the standard library reduce function but it reduces a list of futures instead of a list of a values.
+`Sequence#reduce()` method is the same as the standard library reduce function but it reduces a list of futures instead of a list of a values.
 
 **Example**
 
@@ -267,7 +305,7 @@ f1.merge(f2).then { x, y in
 
 #### wrap
 
-`Future#wrap<A>(_: A.Type)` method takes an arbitrary `Type`. This is useful when a future actually resolves a value with a concrete type but the caller of the future expect another type your value type can be downcasted to. **NOTE: You must make sure that the value can be casted to the given type. Your program will crash otherwise**
+`Future#wrap<A>(_: A.Type)` method takes an arbitrary `Type`. This is useful when a future actually resolves a value with a concrete type but the caller of the future expect another type your value type can be downcasted to. **NOTE: You must make sure that the value can be casted to the given type.**
 
 ```swift
 let f1: Future<String> = ...

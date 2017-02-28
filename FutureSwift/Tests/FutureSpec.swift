@@ -1,8 +1,8 @@
 import Quick
 import Nimble
-import FutureSwift
+import Future
 
-func futures_wait(f: Void -> [Future<Void>]) {
+func futures_wait(_ f: @escaping (Void) -> [Future<Void>]) {
   waitUntil(timeout: 10) { done in
     let futures = f()
     var x = futures.count
@@ -41,7 +41,7 @@ class FutureSpec: QuickSpec {
         }
 
         expect(thenCalledWhenResolved) == true
-        expect(future.state) == FutureState.Resolved
+        expect(future.state.isResolved) == true
         expect(failCalled) == false
 
         futures_wait {
@@ -71,7 +71,7 @@ class FutureSpec: QuickSpec {
           return futures
         }
 
-        expect(future.state) == FutureState.Rejected
+        expect(future.state.isRejected) == true
         expect(thenCalled) == false
         expect(failCalledWhenRejected) == true
 
@@ -85,24 +85,24 @@ class FutureSpec: QuickSpec {
       }
 
       it("resolves/reject on specified queue") {
-        for queue in [dispatch_get_main_queue(), dispatch_queue_create(NSUUID().UUIDString, DISPATCH_QUEUE_CONCURRENT)] {
-          var resolveQueueLabel: UnsafePointer<Int8>!
-          var rejectQueueLabel: UnsafePointer<Int8>!
-          var finallyQueueLabel: UnsafePointer<Int8>!
+        for queue in [DispatchQueue.main, DispatchQueue(label: UUID().uuidString, attributes: DispatchQueue.Attributes.concurrent)] {
+          var resolveQueueLabel: String!
+          var rejectQueueLabel: String!
+          var finallyQueueLabel: String!
 
           let futureResolved = Future<Void>()
           let futureRejected = Future<Void>()
 
           futures_wait {
             let futures = [
-              futureResolved.then(queue) {
-                resolveQueueLabel = dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL)
+              futureResolved.then(on: queue) {
+                resolveQueueLabel = String(cString: __dispatch_queue_get_label(nil), encoding: .utf8)
               },
-              futureRejected.fail(queue) { _ in
-                rejectQueueLabel = dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL)
+              futureRejected.fail(on: queue) { _ in
+                rejectQueueLabel = String(cString: __dispatch_queue_get_label(nil), encoding: .utf8)
               },
-              futureRejected.finally(queue) {
-                finallyQueueLabel = dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL)
+              futureRejected.finally(on: queue) {
+                finallyQueueLabel = String(cString: __dispatch_queue_get_label(nil), encoding: .utf8)
               }
             ]
 
@@ -112,10 +112,10 @@ class FutureSpec: QuickSpec {
             return futures
           }
 
-          expect(futureResolved.state) == FutureState.Resolved
-          expect(futureRejected.state) == FutureState.Rejected
-          expect(resolveQueueLabel) == dispatch_queue_get_label(queue)
-          expect(rejectQueueLabel) == dispatch_queue_get_label(queue)
+          expect(futureResolved.state.isResolved) == true
+          expect(futureRejected.state.isRejected) == true
+          expect(resolveQueueLabel) == queue.label
+          expect(rejectQueueLabel) == queue.label
         }
       }
 
@@ -256,10 +256,8 @@ class FutureSpec: QuickSpec {
           let futures = [
             future.fail { _ in
               failedCalled = true
-            }.timeout(0.5)
+            }.timeout(after: 0.5)
           ]
-
-          future.timeoutTimer?.fire()
 
           return futures
         }
@@ -325,7 +323,7 @@ class FutureSpec: QuickSpec {
       context("when all futures resolve") {
         let futures: [Future<Int>] = (1...3).map { index in
           return Promise { promise in
-            NSThread.sleepForTimeInterval(0.2)
+            Thread.sleep(forTimeInterval: 0.2)
             promise.resolve(index)
           }
         }
@@ -343,10 +341,10 @@ class FutureSpec: QuickSpec {
 
         it ("resolves when all futures are resolved") {
           for future in futures {
-            expect(future.state) == FutureState.Resolved
+            expect(future.state.isResolved) == true
           }
           
-          expect(future.state) == FutureState.Resolved
+          expect(future.state.isResolved) == true
         }
         
         it("resolves with all values") {
@@ -361,7 +359,7 @@ class FutureSpec: QuickSpec {
       context("when at least one future fails") {
         let futures: [Future<Int>] = (1...3).map { index in
           return Promise { future in
-            NSThread.sleepForTimeInterval(0.2 * Double(index))
+            Thread.sleep(forTimeInterval: 0.2 * Double(index))
             if index == 1 {
               future.reject()
             } else {
@@ -377,7 +375,7 @@ class FutureSpec: QuickSpec {
         }
 
         it ("rejects the promise") {
-          expect(future.state) == FutureState.Rejected
+          expect(future.state.isRejected) == true
         }
       }
       
@@ -386,6 +384,8 @@ class FutureSpec: QuickSpec {
     describe("Future.any") {
       
       context("when at least 1 future resolves") {
+        Promise<Int> { p in  }
+
         let futures: [Future<Int>] = (0...2).map { index in
           return Promise { future in
             if index == 0 {
@@ -411,8 +411,8 @@ class FutureSpec: QuickSpec {
         }
         
         it("resolves as soon as one future is resolved") {
-          expect(futures.map { $0.state }).to(contain(FutureState.Resolved))
-          expect(future.state) == FutureState.Resolved
+          expect(futures.map { $0.state.isResolved }).to(contain(true))
+          expect(future.state.isResolved) == true
         }
         
         it("resolves with the first value resolved") {
@@ -425,28 +425,37 @@ class FutureSpec: QuickSpec {
     }
     
     describe("await") {
-      func request(params: [String: String]) -> Future<[String: String]> {
+      func request(_ params: [String: String]) -> Future<[String: String]> {
         return Future {
-          NSThread.sleepForTimeInterval(0.5)
+          Thread.sleep(forTimeInterval: 0.5)
           return params
         }
       }
       
-      func login(u: String, p: String) -> Future<[String: String]> {
+      func login(_ u: String, p: String) -> Future<[String: String]> {
         return Future {
-          try await <- request([u: u, p: p])
+          try await(
+            request([u: u, p: p])
+          )
         }
       }
       
-      func values(user: [String: String]) -> Future<[String]> {
+      func values(_ user: [String: String]) -> Future<[String]> {
         return Future {
-          try { Array<String>($0.values).sort() } <- request(user)
+          try await(
+            request(user) => { Array<String>($0.values).sorted() }
+          )
         }
       }
       
       it("properly awaits and resolve values") {
-        let posts = try? await <- values <- login("foo", p: "bar")
-        expect(posts) == ["bar", "foo"]
+        Future {
+          let posts = try? await(
+            login("foo", p: "bar") => values
+          )
+
+          expect(posts) == ["bar", "foo"]
+        }
       }
     }
     
