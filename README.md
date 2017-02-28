@@ -225,7 +225,7 @@ let f4 = f1 => f2 => f3 // f4 :: (Void) -> Future<[String]>
 
 ### Operators
 
-`=>` operator can be used as syntactic sugar for composing futures as you are composing functions.
+`=>` operator can be used as syntactic sugar for composing futures the same way you are composing functions.
 
 Given
 ```Swift
@@ -235,8 +235,9 @@ func f3(x: String) -> Future<[String]> { ... }
 ```
 
 ```Swift
-let f4 = f1 => f2 => f3   // f4 :: Void -> Future<[String]>
-let f4 = f1() => f2 => f3 // f4 :: Future<[String]>
+let f4 = f1 => f2 => f3              // f4 :: Void -> Future<[String]>
+let f4 = f1() => f2 => f3            // f4 :: Future<[String]>
+let f4 = try await(f1() => f2 => f3) // f4 :: [String]
 ```
 
 ### Control flow
