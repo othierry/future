@@ -305,7 +305,7 @@ public extension Future {
   @discardableResult
   public func fail(on queue: DispatchQueue, f: @escaping (NSError?) -> Void) -> Self {
     self.register(on: queue, .fail {
-      f($0 as? NSError)
+      f($0 as NSError?)
     })
 
     return self
