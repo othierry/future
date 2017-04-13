@@ -562,6 +562,7 @@ extension Future {
    
    Returns: the value the future resolved to
    */
+  @discardableResult
   public func await() throws -> A {
     let semaphore = DispatchSemaphore(value: 0)
     self.finally(on: queue) { semaphore.signal() }
@@ -582,6 +583,7 @@ extension Future {
     }
   }
 
+  @discardableResult
   public func timeout(after seconds: Double) -> Self {
     // Consider 0 as no timeout
     guard seconds > 0 else {
@@ -601,6 +603,7 @@ extension Future {
 
 }
 
+@discardableResult
 public func await<A>(_ future: Future<A>) throws -> A {
   return try future.await()
 }
