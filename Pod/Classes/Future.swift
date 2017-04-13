@@ -508,9 +508,8 @@ extension Future {
    another type your value type can be downcasted to.
    */
   public func wrap<B>(_ type: B.Type) -> Future<B> {
-    /// TODO: Check error when using as! instead of `unsafeBitCast`
     return self.then { x -> B in
-      unsafeBitCast(x, to: B.self)
+      x as! B
     }
   }
 
