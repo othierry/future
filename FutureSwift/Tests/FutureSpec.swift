@@ -162,30 +162,29 @@ class FutureSpec: QuickSpec {
       }
       
       context("when a future fails") {
-        it("it rejects up to the parent") {
+        it("it rejects the children futures") {
           var results: [Int] = []
           let future = Future<Int>()
-
+          
           futures_wait {
             let futures = [
               future.then { x -> Future<Int> in
                 results.append(x)
-                return Future<Void>.reject(nil)
-              }.then { _ in
-                results.append(21)
+                return Future<Int>.resolve(x)
               }.fail { _ in
                 results.append(42)
               }.wrap()
             ]
-
-            future.resolve(1)
-
+            
+            future.reject()
+            
             return futures
           }
-
-          expect(results) == [1, 42]
+          
+          expect(results) == [42]
         }
       }
+      
     }
     
     describe("Future#finally") {

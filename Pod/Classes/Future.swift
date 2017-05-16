@@ -277,6 +277,8 @@ public extension Future {
         .fail(on: queue, f: future.reject)
     })
 
+    self.register(on: queue, .fail(future.reject))
+
     return future
   }
 
