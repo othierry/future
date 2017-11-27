@@ -593,7 +593,7 @@ extension Future {
     }
 
     let timeoutDispatchSource = DispatchSource.makeTimerSource(flags: .strict, queue: queue)
-    timeoutDispatchSource.schedule(deadline: .now(), leeway: .milliseconds(Int(seconds * 1000)))
+    timeoutDispatchSource.scheduleOneshot(deadline: .now(), leeway: .milliseconds(Int(seconds * 1000)))
     timeoutDispatchSource.setEventHandler { [weak self] in self?.reject() }
     timeoutDispatchSource.resume()
 

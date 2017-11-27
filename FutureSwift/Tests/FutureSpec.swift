@@ -2,7 +2,7 @@ import Quick
 import Nimble
 import Future
 
-func futures_wait(_ f: @escaping (Void) -> [Future<Void>]) {
+func futures_wait(_ f: @escaping () -> [Future<Void>]) {
   waitUntil(timeout: 10) { done in
     let futures = f()
     var x = futures.count
@@ -35,7 +35,7 @@ class FutureSpec: QuickSpec {
             future.fail { _ in failCalled = true }
           ]
 
-          future.resolve()
+          future.resolve(())
 
           return futures
         }
@@ -106,7 +106,7 @@ class FutureSpec: QuickSpec {
               }
             ]
 
-            futureResolved.resolve()
+            futureResolved.resolve(())
             futureRejected.reject(nil)
 
             return futures
@@ -131,7 +131,7 @@ class FutureSpec: QuickSpec {
             }
           }
 
-          future.resolve()
+          future.resolve(())
 
           return futures
         }
@@ -212,7 +212,7 @@ class FutureSpec: QuickSpec {
             }
           ]
 
-          future.resolve()
+          future.resolve(())
 
           return futures
         }
