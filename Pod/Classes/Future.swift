@@ -56,7 +56,7 @@ public enum FutureState<A> {
 fileprivate enum FutureCallback<A> {
   case then((A) -> Void)
   case fail((Error?) -> Void)
-  case finally((Void) -> Void)
+  case finally(() -> Void)
 }
 
 public class Future<A>: FutureType {
@@ -76,7 +76,7 @@ public class Future<A>: FutureType {
   ///
   /// Important: When resolved, the fuctture will discard `fail` chain fonctions.
   /// When rejected, the future will discard `then` chain fonctions, etc
-  fileprivate var chain: (then: [(A) -> Void], fail: [(Error?) -> Void], finally: [(Void) -> Void]) = ([], [], [])
+  fileprivate var chain: (then: [(A) -> Void], fail: [(Error?) -> Void], finally: [() -> Void]) = ([], [], [])
 
   // Timer dispatch source used for future with a timeout
   fileprivate var timeoutDispatchSource: DispatchSourceTimer? {
@@ -97,7 +97,7 @@ public class Future<A>: FutureType {
    Returns: The created future object
    */
   @discardableResult
-  public convenience init(_ f: @escaping (Void) throws -> A) {
+  public convenience init(_ f: @escaping () throws -> A) {
     self.init()
 
     queue.async {
@@ -356,7 +356,7 @@ public extension Future {
    Important: `f` is garanteed to be executed on main queue
    */
   @discardableResult
-  public func finally(_ f: @escaping (Void) -> Void) -> Self {
+  public func finally(_ f: @escaping () -> Void) -> Self {
     return self.finally(on: DispatchQueue.main, f: f)
   }
 
@@ -369,7 +369,7 @@ public extension Future {
    Returns: self
    */
   @discardableResult
-  public func finally(on queue: DispatchQueue, f: @escaping (Void) -> Void) -> Self {
+  public func finally(on queue: DispatchQueue, f: @escaping () -> Void) -> Self {
     self.register(on: queue, .finally(f))
     return self
   }
@@ -593,7 +593,7 @@ extension Future {
     }
 
     let timeoutDispatchSource = DispatchSource.makeTimerSource(flags: .strict, queue: queue)
-    timeoutDispatchSource.scheduleOneshot(deadline: .now(), leeway: .milliseconds(Int(seconds * 1000)))
+    timeoutDispatchSource.schedule(deadline: .now(), leeway: .milliseconds(Int(seconds * 1000)))
     timeoutDispatchSource.setEventHandler { [weak self] in self?.reject() }
     timeoutDispatchSource.resume()
 

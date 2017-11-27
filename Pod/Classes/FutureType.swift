@@ -26,9 +26,9 @@ public protocol FutureType {
   func fail<E: Error>(_ f: @escaping (E) -> Void) -> Future<A>
 
   @discardableResult
-  func finally(_ f: @escaping (Void) -> Void) -> Future<A>
+  func finally(_ f: @escaping () -> Void) -> Future<A>
   @discardableResult
-  func finally(on queue: DispatchQueue, f: @escaping (Void) -> Void) -> Future<A>
+  func finally(on queue: DispatchQueue, f: @escaping () -> Void) -> Future<A>
 
   func resolve(_ value: A)
   func reject(_ error: Error?)
