@@ -1,9 +1,9 @@
-#if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+#if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
 import Foundation
 
 public extension NSString {
 
-    fileprivate static var invalidCharacters: CharacterSet = {
+    private static var invalidCharacters: CharacterSet = {
         var invalidCharacters = CharacterSet()
 
         let invalidCharacterSets: [CharacterSet] = [
@@ -12,7 +12,7 @@ public extension NSString {
             .controlCharacters,
             .punctuationCharacters,
             .nonBaseCharacters,
-            .symbols,
+            .symbols
         ]
 
         for invalidSet in invalidCharacterSets {

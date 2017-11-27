@@ -11,11 +11,11 @@ final public class ExampleGroup: NSObject {
 
     internal var phase: HooksPhase = .nothingExecuted
 
-    fileprivate let internalDescription: String
-    fileprivate let flags: FilterFlags
-    fileprivate let isInternalRootExampleGroup: Bool
-    fileprivate var childGroups = [ExampleGroup]()
-    fileprivate var childExamples = [Example]()
+    private let internalDescription: String
+    private let flags: FilterFlags
+    private let isInternalRootExampleGroup: Bool
+    private var childGroups = [ExampleGroup]()
+    private var childExamples = [Example]()
 
     internal init(description: String, flags: FilterFlags, isInternalRootExampleGroup: Bool = false) {
         self.internalDescription = description
@@ -32,20 +32,16 @@ final public class ExampleGroup: NSObject {
         or to any of its descendant example groups.
     */
     public var examples: [Example] {
-        var examples = childExamples
-        for group in childGroups {
-            examples.append(contentsOf: group.examples)
-        }
-        return examples
+        return childExamples + childGroups.flatMap { $0.examples }
     }
 
     internal var name: String? {
-        if let parent = parent {
-            guard let name = parent.name else { return description }
-            return "\(name), \(description)"
-        } else {
+        guard let parent = parent else {
             return isInternalRootExampleGroup ? nil : description
         }
+
+        guard let name = parent.name else { return description }
+        return "\(name), \(description)"
     }
 
     internal var filterFlags: FilterFlags {
@@ -93,7 +89,7 @@ final public class ExampleGroup: NSObject {
         childExamples.append(example)
     }
 
-    fileprivate func walkUp(_ callback: (_ group: ExampleGroup) -> Void) {
+    private func walkUp(_ callback: (_ group: ExampleGroup) -> Void) {
         var group = self
         while let parent = group.parent {
             callback(parent)
